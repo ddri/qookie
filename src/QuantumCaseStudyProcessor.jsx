@@ -1,5 +1,5 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { FileText, Search, Download, Upload, Settings, ChevronDown, ChevronUp, ExternalLink, BookOpen, Building, Moon, Sun } from 'lucide-react';
+import { FileText, Search, Download, Upload, Settings, ChevronDown, ChevronUp, ExternalLink, BookOpen, Building, Moon, Sun, RefreshCw } from 'lucide-react';
 import CSVImportManager from './components/CSVImportManager.jsx';
 import SearchAllCasesFeature from './components/SearchAllCasesFeature.jsx';
 
@@ -21,7 +21,6 @@ const QuantumCaseStudyProcessor = () => {
   const [generatedCaseStudy, setGeneratedCaseStudy] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState('partnerships');
-  const [expandedSections, setExpandedSections] = useState({});
   const [darkMode, setDarkMode] = useState(false);
 
   // Initialize data on mount
@@ -87,7 +86,7 @@ const QuantumCaseStudyProcessor = () => {
         });
         
         return {
-          id: parseInt(row.id) || index + 1,
+          id: row.id !== undefined && row.id !== '' ? parseInt(row.id) : index + 1,
           company: row.quantum_company || '',
           partner: row.commercial_partner || '',
           status: row.status || '',
@@ -96,7 +95,17 @@ const QuantumCaseStudyProcessor = () => {
         };
       });
       
-      return data.filter(row => row.company && row.partner);
+      const filteredData = data.filter(row => row.company && row.partner);
+      console.log('Parsed CSV data:', filteredData);
+      
+      // Check for duplicate IDs
+      const ids = filteredData.map(row => row.id);
+      const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
+      if (duplicateIds.length > 0) {
+        console.error('Duplicate IDs found:', duplicateIds);
+      }
+      
+      return filteredData;
     } catch (error) {
       console.error('CSV parsing error:', error);
       return [];
@@ -119,51 +128,103 @@ const QuantumCaseStudyProcessor = () => {
     setResearchData(newResearchData);
   };
 
-  const generateCaseStudy = async (partnership) => {
-    if (!partnership) return;
+  const generateCaseStudy = async (partnership, forceRegenerate = false) => {
+    console.log('generateCaseStudy called with:', partnership, 'forceRegenerate:', forceRegenerate);
+    
+    if (!partnership) {
+      console.error('No partnership provided to generateCaseStudy');
+      return;
+    }
+
+    // Check if case study already exists and we're not forcing regeneration
+    if (!forceRegenerate) {
+      const existingCaseStudy = localStorage.getItem(`case-study-${partnership.id}`);
+      console.log('Existing case study check:', existingCaseStudy ? 'Found' : 'Not found');
+      if (existingCaseStudy) {
+        try {
+          const parsed = JSON.parse(existingCaseStudy);
+          console.log('Loading existing case study:', parsed);
+          setGeneratedCaseStudy(parsed);
+          return;
+        } catch (error) {
+          console.warn('Failed to parse existing case study:', error);
+        }
+      }
+    }
 
     setIsGenerating(true);
     setGeneratedCaseStudy(null);
 
     try {
-      // Find research data for this partnership
-      const research = researchData.find(r => r.id === partnership.id);
+      console.log('Starting case study generation process...');
       
-      const prompt = `create a detailed case study for the quantum computing partnership between ${partnership.company} and ${partnership.partner}. 
-
-${research ? `Use this research data: ${JSON.stringify(research.data, null, 2)}` : 'Please research and include information about this partnership.'}
-
-Format the response as JSON with these sections:
-{
-  "title": "Partnership Title",
-  "slug": "url-friendly-slug",
-  "summary": "Brief summary",
-  "introduction": "Introduction paragraph",
-  "challenge": "The challenge or problem being addressed",
-  "implementation": "How quantum computing was implemented",
-  "results_and_business_impact": "Outcomes and business impact",
-  "technical_details": "Technical aspects and quantum algorithms used",
-  "future_directions": "Future plans and potential",
-  "algorithms": ["Algorithm 1", "Algorithm 2"],
-  "industries": ["Industry 1", "Industry 2"], 
-  "personas": ["Persona 1", "Persona 2"],
-  "scientific_references": [{"title": "Paper", "url": "URL", "year": "2023"}],
-  "company_resources": [{"title": "Resource", "url": "URL", "type": "press release"}],
-  "metadata": {
-    "company": "${partnership.company}",
-    "partner": "${partnership.partner}",
-    "year": "${partnership.year}",
-    "status": "${partnership.status}"
-  }
-}`;
-
-      const response = await window.claude.complete(prompt);
-      const caseStudyData = JSON.parse(response);
+      // First, check if we have research data for this partnership
+      let research = researchData.find(r => r.id === partnership.id);
+      console.log('Existing research data:', research);
       
-      setGeneratedCaseStudy(caseStudyData);
+      // If no research data exists, conduct research first
+      if (!research || !research.searchSuccess) {
+        console.log('No research data found, conducting research first...');
+        
+        try {
+          // Import the research engine dynamically
+          console.log('Importing research engine...');
+          const { QuantumResearchEngine } = await import('./research/QuantumResearchEngine.js');
+          
+          // Load reference case study
+          console.log('Loading reference case study...');
+          const referenceResponse = await fetch('/reference/ReferenceCaseStudy-Barclays-and-Quantinuum.md');
+          if (!referenceResponse.ok) {
+            throw new Error(`Failed to load reference: ${referenceResponse.status}`);
+          }
+          const referenceText = await referenceResponse.text();
+          console.log('Reference loaded, length:', referenceText.length);
+          
+          // Initialize and conduct research
+          console.log('Initializing research engine...');
+          const researchEngine = new QuantumResearchEngine();
+          await researchEngine.initialize(referenceText);
+          
+          console.log('Conducting research...');
+          research = await researchEngine.conductResearch(partnership);
+          console.log('Research completed:', research);
+          
+          // Update research data
+          const updatedResearchData = [...researchData];
+          const existingIndex = updatedResearchData.findIndex(r => r.id === partnership.id);
+          
+          if (existingIndex >= 0) {
+            updatedResearchData[existingIndex] = research;
+          } else {
+            updatedResearchData.push(research);
+          }
+          
+          handleUpdateResearchData(updatedResearchData);
+          
+        } catch (researchError) {
+          console.error('Research process failed:', researchError);
+          throw new Error(`Research failed: ${researchError.message}`);
+        }
+      }
+
+      // Use the research data directly as the case study
+      if (research && research.searchSuccess && research.data) {
+        console.log('Using research data as case study:', research.data);
+        const caseStudyData = research.data;
+        
+        // Save to localStorage for future use
+        localStorage.setItem(`case-study-${partnership.id}`, JSON.stringify(caseStudyData));
+        
+        setGeneratedCaseStudy(caseStudyData);
+        console.log('Case study generated successfully');
+      } else {
+        console.error('Research data not valid:', research);
+        throw new Error('Failed to generate research data');
+      }
+      
     } catch (error) {
       console.error('Error generating case study:', error);
-      alert('Error generating case study. Please try again.');
+      alert(`Error generating case study: ${error.message}`);
     } finally {
       setIsGenerating(false);
     }
@@ -259,12 +320,6 @@ Generated by Quantum Case Study Processor
     reader.readAsText(file);
   };
 
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
 
   const getPartnershipWithResearch = (partnership) => {
     const research = researchData.find(r => r.id === partnership.id);
@@ -351,7 +406,10 @@ Generated by Quantum Case Study Processor
                               ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                               : `${darkMode ? 'border-gray-600 hover:border-gray-500 bg-gray-700' : 'border-gray-200 hover:border-gray-300 bg-white'}`
                           }`}
-                          onClick={() => setSelectedPartnership(partnership)}
+                          onClick={() => {
+                            console.log('Selecting partnership:', partnership.id, partnership.company, partnership.partner);
+                            setSelectedPartnership(partnership);
+                          }}
                         >
                           <div className="flex items-center justify-between">
                             <div>
@@ -373,12 +431,16 @@ Generated by Quantum Case Study Processor
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  console.log('Generate Case Study button clicked for partnership:', partnership);
                                   generateCaseStudy(partnership);
                                 }}
                                 disabled={isGenerating}
                                 className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 disabled:opacity-50"
                               >
-                                Generate Case Study
+                                {(() => {
+                                  const existingCaseStudy = localStorage.getItem(`case-study-${partnership.id}`);
+                                  return existingCaseStudy ? 'View Case Study' : 'Generate Case Study';
+                                })()}
                               </button>
                             </div>
                           </div>
@@ -403,66 +465,168 @@ Generated by Quantum Case Study Processor
                 {generatedCaseStudy && (
                   <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-md p-6`}>
                     <div className="flex items-center justify-between mb-4">
-                      <h2 className={`text-xl font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Generated Case Study</h2>
-                      <button
-                        onClick={() => exportCaseStudyAsMarkdown(generatedCaseStudy)}
-                        className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
-                      >
-                        <Download className="w-4 h-4" />
-                        Export Markdown
-                      </button>
+                      <h2 className={`text-xl font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Case Study</h2>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => generateCaseStudy(selectedPartnership, true)}
+                          disabled={isGenerating}
+                          className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                          Regenerate
+                        </button>
+                        <button
+                          onClick={() => exportCaseStudyAsMarkdown(generatedCaseStudy)}
+                          className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+                        >
+                          <Download className="w-4 h-4" />
+                          Export Markdown
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-6">
+                      {/* Title and Summary */}
                       <div>
-                        <h3 className={`text-lg font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{generatedCaseStudy.title}</h3>
-                        <p className={`mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{generatedCaseStudy.summary}</p>
+                        <h3 className={`text-2xl font-bold mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {generatedCaseStudy.title}
+                        </h3>
+                        <p className={`text-lg leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {generatedCaseStudy.summary}
+                        </p>
                       </div>
 
-                      {['introduction', 'challenge', 'implementation', 'results_and_business_impact', 'technical_details', 'future_directions'].map(section => (
-                        <div key={section} className={`border rounded-lg ${darkMode ? 'border-gray-600' : 'border-gray-200'}`}>
-                          <button
-                            onClick={() => toggleSection(section)}
-                            className={`w-full px-4 py-3 text-left font-medium rounded-t-lg flex items-center justify-between ${
-                              darkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-50 hover:bg-gray-100 text-gray-900'
-                            }`}
-                          >
-                            <span className="capitalize">{section.replace(/_/g, ' ')}</span>
-                            {expandedSections[section] ? 
-                              <ChevronUp className="w-4 h-4" /> : 
-                              <ChevronDown className="w-4 h-4" />
-                            }
-                          </button>
-                          {expandedSections[section] && (
-                            <div className={`p-4 border-t ${darkMode ? 'border-gray-600' : 'border-gray-200'}`}>
-                              <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>{generatedCaseStudy[section]}</p>
-                            </div>
-                          )}
+                      {/* Introduction */}
+                      {generatedCaseStudy.introduction && (
+                        <div>
+                          <h4 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Introduction</h4>
+                          <p className={`leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            {generatedCaseStudy.introduction}
+                          </p>
                         </div>
-                      ))}
+                      )}
+
+                      {/* Challenge */}
+                      {generatedCaseStudy.challenge && (
+                        <div>
+                          <h4 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Challenge</h4>
+                          <p className={`leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            {generatedCaseStudy.challenge}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Solution */}
+                      {generatedCaseStudy.solution && (
+                        <div>
+                          <h4 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Solution</h4>
+                          <p className={`leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            {generatedCaseStudy.solution}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Implementation */}
+                      {generatedCaseStudy.implementation && (
+                        <div>
+                          <h4 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Implementation</h4>
+                          <p className={`leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            {generatedCaseStudy.implementation}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Results and Business Impact */}
+                      {generatedCaseStudy.results_and_business_impact && (
+                        <div>
+                          <h4 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Results and Business Impact</h4>
+                          <p className={`leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            {generatedCaseStudy.results_and_business_impact}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Technical Details */}
+                      {generatedCaseStudy.technical_details && (
+                        <div>
+                          <h4 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Technical Details</h4>
+                          <p className={`leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            {generatedCaseStudy.technical_details}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Future Directions */}
+                      {generatedCaseStudy.future_directions && (
+                        <div>
+                          <h4 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Future Directions</h4>
+                          <p className={`leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            {generatedCaseStudy.future_directions}
+                          </p>
+                        </div>
+                      )}
 
                       {/* Metadata */}
                       <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                        <h4 className={`font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Metadata</h4>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
+                        <h4 className={`font-medium mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Case Study Details</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                           <div>
-                            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Algorithms:</span>
-                            <p className={darkMode ? 'text-gray-300' : 'text-gray-900'}>{generatedCaseStudy.algorithms?.join(', ') || 'None'}</p>
+                            <span className={`block font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Algorithms:</span>
+                            <p className={darkMode ? 'text-gray-300' : 'text-gray-900'}>{generatedCaseStudy.algorithms?.join(', ') || 'None specified'}</p>
                           </div>
                           <div>
-                            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Industries:</span>
-                            <p className={darkMode ? 'text-gray-300' : 'text-gray-900'}>{generatedCaseStudy.industries?.join(', ') || 'None'}</p>
+                            <span className={`block font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Industries:</span>
+                            <p className={darkMode ? 'text-gray-300' : 'text-gray-900'}>{generatedCaseStudy.industries?.join(', ') || 'None specified'}</p>
                           </div>
                           <div>
-                            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Personas:</span>
-                            <p className={darkMode ? 'text-gray-300' : 'text-gray-900'}>{generatedCaseStudy.personas?.join(', ') || 'None'}</p>
+                            <span className={`block font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Target Personas:</span>
+                            <p className={darkMode ? 'text-gray-300' : 'text-gray-900'}>{generatedCaseStudy.personas?.join(', ') || 'None specified'}</p>
+                          </div>
+                          <div>
+                            <span className={`block font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Research Quality:</span>
+                            <p className={darkMode ? 'text-gray-300' : 'text-gray-900'}>
+                              {generatedCaseStudy.research_quality?.confidence_level || 'Unknown'}
+                            </p>
                           </div>
                         </div>
                       </div>
+
+                      {/* References */}
+                      {(generatedCaseStudy.scientific_references?.length > 0 || generatedCaseStudy.company_resources?.length > 0) && (
+                        <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                          <h4 className={`font-medium mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>References</h4>
+                          
+                          {generatedCaseStudy.scientific_references?.length > 0 && (
+                            <div className="mb-4">
+                              <h5 className={`font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Scientific References:</h5>
+                              <ul className="space-y-1 text-sm">
+                                {generatedCaseStudy.scientific_references.map((ref, index) => (
+                                  <li key={index} className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                                    • {ref.title} ({ref.year})
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {generatedCaseStudy.company_resources?.length > 0 && (
+                            <div>
+                              <h5 className={`font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Company Resources:</h5>
+                              <ul className="space-y-1 text-sm">
+                                {generatedCaseStudy.company_resources.map((resource, index) => (
+                                  <li key={index} className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                                    • {resource.title} ({resource.type})
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
           </div>
         )}
 

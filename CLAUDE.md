@@ -32,6 +32,14 @@ This is a React-based quantum computing case study processor that generates stru
 - Includes mock Claude API implementation for local development (see `src/index.jsx:6-45`)
 - Mock API responds to prompts about case study generation, analysis, and search
 
+### Enhanced Research Engine
+- **QuantumResearchEngine.js** - Advanced research system with quality standards
+- **ResearchPromptSystem.js** - Structured prompting for comprehensive case studies
+- Uses Barclays-Quantinuum reference case study as quality benchmark
+- Generates detailed case studies matching professional standards
+- Includes retry logic, caching, and validation systems
+- Reference file: `/public/reference/ReferenceCaseStudy-Barclays-and-Quantinuum.md`
+
 ### Key Files
 - `src/index.jsx` - Entry point with Claude API mock setup
 - `data/quantum-partnerships.csv` - Source data for partnerships

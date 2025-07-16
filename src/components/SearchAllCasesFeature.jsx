@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Search, PlayCircle, PauseCircle, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, PlayCircle, PauseCircle, CheckCircle, XCircle, AlertCircle, RefreshCw, Database, Zap } from 'lucide-react';
 import { useDarkMode } from '../QuantumCaseStudyProcessor.jsx';
+import { QuantumResearchEngine } from '../research/QuantumResearchEngine.js';
 
 const SearchAllCasesFeature = ({ sourceData, onUpdateResearchData, researchData }) => {
   const { darkMode } = useDarkMode();
@@ -9,46 +10,44 @@ const SearchAllCasesFeature = ({ sourceData, onUpdateResearchData, researchData 
   const [searchResults, setSearchResults] = useState([]);
   const [searchProgress, setSearchProgress] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [researchEngine, setResearchEngine] = useState(null);
+  const [engineStatus, setEngineStatus] = useState('initializing');
+
+  // Initialize research engine
+  useEffect(() => {
+    const initializeEngine = async () => {
+      try {
+        setEngineStatus('loading_reference');
+        
+        // Load reference case study
+        const referenceResponse = await fetch('/reference/ReferenceCaseStudy-Barclays-and-Quantinuum.md');
+        const referenceText = await referenceResponse.text();
+        
+        // Initialize research engine
+        const engine = new QuantumResearchEngine();
+        await engine.initialize(referenceText);
+        
+        setResearchEngine(engine);
+        setEngineStatus('ready');
+        
+      } catch (error) {
+        console.error('Failed to initialize research engine:', error);
+        setEngineStatus('error');
+      }
+    };
+    
+    initializeEngine();
+  }, []);
 
   const performSearch = async (partnership) => {
-    const searchPrompt = `search for and provide comprehensive information about the quantum computing partnership between ${partnership.company} and ${partnership.partner}. Include:
-
-1. Partnership details and timeline
-2. Technical objectives and quantum applications
-3. Business outcomes and impact
-4. Scientific publications or research papers
-5. Company press releases or announcements
-6. Current status and future plans
-
-Format the response as JSON with these fields:
-{
-  "found": boolean,
-  "title": "Partnership Title",
-  "year": "Year",
-  "content": "Detailed description",
-  "technical_details": "Technical aspects",
-  "business_impact": "Business outcomes",
-  "scientificReferences": [{"title": "Paper title", "url": "URL", "year": "2023"}],
-  "companyResources": [{"title": "Resource title", "url": "URL", "type": "press release"}],
-  "status": "current status",
-  "notes": "Additional notes"
-}
-
-Partnership: ${partnership.company} + ${partnership.partner}`;
-
+    if (!researchEngine) {
+      throw new Error('Research engine not initialized');
+    }
+    
     try {
-      const response = await window.claude.complete(searchPrompt);
-      const parsedResponse = JSON.parse(response);
-      
-      return {
-        id: partnership.id,
-        company: partnership.company,
-        partner: partnership.partner,
-        searchSuccess: true,
-        data: parsedResponse,
-        searchDate: new Date().toISOString()
-      };
+      return await researchEngine.conductResearch(partnership);
     } catch (error) {
+      console.error('Research failed:', error);
       return {
         id: partnership.id,
         company: partnership.company,
@@ -63,6 +62,11 @@ Partnership: ${partnership.company} + ${partnership.partner}`;
   const startBulkSearch = async () => {
     if (!sourceData || sourceData.length === 0) {
       alert('No partnership data available to search');
+      return;
+    }
+
+    if (engineStatus !== 'ready') {
+      alert('Research engine not ready. Please wait for initialization to complete.');
       return;
     }
 
@@ -186,12 +190,38 @@ Partnership: ${partnership.company} + ${partnership.partner}`;
       </h2>
       
       <div className="space-y-4">
+        {/* Research Engine Status */}
+        <div className={`p-3 rounded-lg mb-4 ${
+          engineStatus === 'ready' 
+            ? (darkMode ? 'bg-green-900 text-green-300' : 'bg-green-50 text-green-800')
+            : engineStatus === 'error'
+            ? (darkMode ? 'bg-red-900 text-red-300' : 'bg-red-50 text-red-800')
+            : (darkMode ? 'bg-yellow-900 text-yellow-300' : 'bg-yellow-50 text-yellow-800')
+        }`}>
+          <div className="flex items-center gap-2">
+            {engineStatus === 'ready' && <Database className="w-4 h-4" />}
+            {engineStatus === 'error' && <XCircle className="w-4 h-4" />}
+            {engineStatus !== 'ready' && engineStatus !== 'error' && <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />}
+            <span className="font-medium">
+              {engineStatus === 'initializing' && 'Initializing Research Engine...'}
+              {engineStatus === 'loading_reference' && 'Loading Reference Case Study...'}
+              {engineStatus === 'ready' && 'Research Engine Ready'}
+              {engineStatus === 'error' && 'Research Engine Error'}
+            </span>
+          </div>
+          {engineStatus === 'ready' && (
+            <p className="text-sm mt-1">
+              High-quality research enabled with Barclays-Quantinuum reference standard
+            </p>
+          )}
+        </div>
+
         {/* Search Controls */}
         <div className="flex items-center gap-4">
           {searchStatus === 'idle' && (
             <button
               onClick={startBulkSearch}
-              disabled={!sourceData || sourceData.length === 0}
+              disabled={!sourceData || sourceData.length === 0 || engineStatus !== 'ready'}
               className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <PlayCircle className="w-4 h-4" />
@@ -289,15 +319,16 @@ Partnership: ${partnership.company} + ${partnership.partner}`;
         {/* Instructions */}
         <div className={`text-sm p-3 rounded-lg ${darkMode ? 'bg-blue-900 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
           <div className="flex items-start gap-2">
-            <AlertCircle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${darkMode ? 'text-blue-400' : 'text-blue-500'}`} />
+            <Zap className={`w-4 h-4 mt-0.5 flex-shrink-0 ${darkMode ? 'text-blue-400' : 'text-blue-500'}`} />
             <div>
-              <h4 className={`font-medium mb-1 ${darkMode ? 'text-blue-200' : 'text-blue-800'}`}>How Bulk Search Works:</h4>
+              <h4 className={`font-medium mb-1 ${darkMode ? 'text-blue-200' : 'text-blue-800'}`}>Enhanced Research Engine:</h4>
               <ul className="space-y-1">
-                <li>• Searches for partnerships that don't have research data yet</li>
-                <li>• Uses Claude API to find comprehensive partnership information</li>
-                <li>• Automatically saves research data for each partnership</li>
-                <li>• Can be paused and resumed at any time</li>
-                <li>• Results are saved in real-time to prevent data loss</li>
+                <li>• Uses Barclays-Quantinuum case study as quality reference standard</li>
+                <li>• Generates comprehensive case studies with technical details</li>
+                <li>• Includes business impact metrics and implementation details</li>
+                <li>• Provides scientific references and company resources</li>
+                <li>• Automatic retry logic and quality validation</li>
+                <li>• Results cached for performance and saved in real-time</li>
               </ul>
             </div>
           </div>
