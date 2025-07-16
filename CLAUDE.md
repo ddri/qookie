@@ -22,9 +22,10 @@ This is a React-based quantum computing case study processor that generates stru
 - **SearchAllCasesFeature.jsx** - Provides search functionality across case studies
 
 ### Data Structure
-- Uses CSV files in `/data/` directory for quantum partnership data
-- Expects CSV with columns: `id`, `quantum_company`, `commercial_partner`
+- Uses CSV files in `/public/data/` directory for quantum partnership data (copied from `/data/`)
+- Expects CSV with columns: `id`, `quantum_company`, `commercial_partner`, `status`, `year`, `notes`
 - Falls back to hardcoded data if CSV not available
+- Currently loads 22 quantum partnerships from CSV
 
 ### Development Environment
 - Uses Vite for build tooling with React plugin
@@ -35,6 +36,13 @@ This is a React-based quantum computing case study processor that generates stru
 - `src/index.jsx` - Entry point with Claude API mock setup
 - `data/quantum-partnerships.csv` - Source data for partnerships
 - `vite.config.js` - Vite configuration with port 3000 and auto-open
+
+### Dark Mode Support
+- Full dark mode implementation with toggle in header
+- Uses React Context for state management across all components
+- Preference saved to localStorage for persistence
+- All components styled with dark mode variants
+- Toggle button shows sun/moon icons for visual feedback
 
 ### External Dependencies
 - React 18.2.0
