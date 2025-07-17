@@ -14,6 +14,7 @@ function App() {
     industries: [],
     personas: []
   });
+  const [selectedModel, setSelectedModel] = useState('claude-3-5-sonnet-20241022');
 
   // Load CSV data and research history on mount
   useEffect(() => {
@@ -319,7 +320,8 @@ Return ONLY the JSON object above with your analysis results.`;
           partner: partnership.partner,
           year: partnership.year,
           status: partnership.status,
-          notes: prompt
+          notes: prompt,
+          model: selectedModel
         })
       });
 
@@ -421,7 +423,8 @@ Return ONLY the JSON object above with your analysis results.`;
           partner: partnership.partner,
           year: partnership.year,
           status: partnership.status,
-          notes: partnership.notes
+          notes: partnership.notes,
+          model: selectedModel
         })
       });
 
@@ -460,21 +463,57 @@ Return ONLY the JSON object above with your analysis results.`;
         boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
-          <h1 style={{ 
-            margin: 0, 
-            fontSize: '28px', 
-            fontWeight: '700',
-            color: '#1e293b'
-          }}>
-            🔬 Quantum Partnership Research Tool
-          </h1>
-          <p style={{ 
-            margin: '8px 0 0 0', 
-            color: '#64748b', 
-            fontSize: '16px' 
-          }}>
-            Generate AI-powered case studies from quantum computing partnerships
-          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h1 style={{ 
+                margin: 0, 
+                fontSize: '28px', 
+                fontWeight: '700',
+                color: '#1e293b'
+              }}>
+                🔬 Quantum Partnership Research Tool
+              </h1>
+              <p style={{ 
+                margin: '8px 0 0 0', 
+                color: '#64748b', 
+                fontSize: '16px' 
+              }}>
+                Generate AI-powered case studies from quantum computing partnerships
+              </p>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <label style={{ 
+                fontSize: '14px', 
+                fontWeight: '500', 
+                color: '#374151' 
+              }}>
+                Claude Model:
+              </label>
+              <select 
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  fontSize: '14px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  backgroundColor: 'white',
+                  color: '#374151',
+                  cursor: 'pointer',
+                  minWidth: '260px'
+                }}
+              >
+                <option value="claude-4-opus">Claude 4 Opus (Most Capable)</option>
+                <option value="claude-4-sonnet">Claude 4 Sonnet (Latest)</option>
+                <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku (Fast & Smart)</option>
+                <option value="claude-3-opus-20240229">Claude 3 Opus</option>
+                <option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option>
+                <option value="claude-3-haiku-20240307">Claude 3 Haiku (Fastest)</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -630,9 +669,25 @@ Return ONLY the JSON object above with your analysis results.`;
                         padding: '2px 8px',
                         backgroundColor: 'rgba(255,255,255,0.2)',
                         borderRadius: '4px',
-                        display: 'inline-block'
+                        display: 'inline-block',
+                        marginBottom: '4px'
                       }}>
                         {selectedPartnership.status || 'Unknown Status'}
+                      </div>
+                      <div style={{ 
+                        fontSize: '12px', 
+                        opacity: '0.7',
+                        padding: '2px 6px',
+                        backgroundColor: 'rgba(255,255,255,0.15)',
+                        borderRadius: '3px',
+                        display: 'inline-block'
+                      }}>
+                        {selectedModel.includes('claude-4-opus') ? '4 Opus' : 
+                         selectedModel.includes('claude-4-sonnet') ? '4 Sonnet' :
+                         selectedModel.includes('3-5-haiku') ? '3.5 Haiku' :
+                         selectedModel.includes('3-5-sonnet') ? '3.5 Sonnet' :
+                         selectedModel.includes('opus') ? '3 Opus' :
+                         selectedModel.includes('haiku') ? '3 Haiku' : '3 Sonnet'}
                       </div>
                     </div>
                   </div>
