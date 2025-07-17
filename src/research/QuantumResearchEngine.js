@@ -27,8 +27,7 @@ export class QuantumResearchEngine {
       this.claudeAPI = window.claude;
       console.log('Claude API initialized for research');
     } else {
-      console.warn('Claude API not available - using mock mode');
-      this.claudeAPI = this.createMockAPI();
+      throw new Error('Claude API not available. Please ensure API access is configured.');
     }
   }
 
@@ -57,21 +56,23 @@ export class QuantumResearchEngine {
    * Generate a mock research response that looks realistic
    */
   generateMockResearchResponse(prompt) {
-    const companyMatch = prompt.match(/between ([^and]+) and ([^.]+)/);
-    const quantumCompany = companyMatch ? companyMatch[1].trim() : 'Unknown';
-    const partner = companyMatch ? companyMatch[2].trim() : 'Unknown';
+    // Use the current partnership if available, otherwise use defaults
+    const quantumCompany = this.currentPartnership?.company || 'Quantum Company';
+    const partner = this.currentPartnership?.partner || 'Partner Company';
+    
+    console.log('Using companies:', { quantumCompany, partner });
     
     const mockResponse = {
       title: `${quantumCompany} and ${partner}: Quantum Computing Partnership`,
       slug: `${quantumCompany.toLowerCase().replace(/\s+/g, '-')}-${partner.toLowerCase().replace(/\s+/g, '-')}-quantum-partnership`,
-      summary: `${quantumCompany} partnered with ${partner} to explore quantum computing applications in their industry, focusing on optimization and computational challenges that could benefit from quantum advantages.`,
-      introduction: `In recent years, ${quantumCompany} has established a strategic partnership with ${partner} to explore the potential of quantum computing in solving complex computational challenges. This collaboration represents a significant step forward in the practical application of quantum technologies in enterprise environments.`,
-      challenge: `${partner} faced significant computational challenges in their operations that required innovative approaches. Traditional computing methods were reaching their limits in handling the scale and complexity of modern business requirements. The partnership aimed to identify specific use cases where quantum computing could provide meaningful advantages.`,
-      solution: `${quantumCompany} developed a quantum computing solution tailored to ${partner}'s specific needs. The solution leveraged quantum algorithms and specialized hardware to address the computational bottlenecks identified in the challenge assessment phase.`,
-      implementation: `The implementation followed a structured approach starting with proof-of-concept development, followed by pilot testing, and gradual scaling to production environments. The teams worked closely to ensure seamless integration with existing systems.`,
-      results_and_business_impact: `The partnership demonstrated promising results in the targeted application areas. While specific metrics may vary, the collaboration has established a foundation for future quantum computing initiatives and has positioned both companies at the forefront of quantum technology adoption.`,
-      future_directions: `Both companies plan to expand their quantum computing collaboration, exploring additional use cases and scaling successful implementations. This partnership serves as a model for other organizations considering quantum computing adoption.`,
-      technical_details: `The solution utilized quantum algorithms appropriate for the problem domain, implemented on suitable quantum hardware platforms. Technical integration challenges were addressed through hybrid quantum-classical approaches.`,
+      summary: `${quantumCompany} partnered with ${partner} to explore quantum computing applications in their industry, focusing on optimization and computational challenges that could benefit from quantum advantages. This strategic collaboration aims to leverage quantum computing capabilities to solve complex problems that traditional computing methods struggle to address efficiently, with particular emphasis on areas where quantum algorithms can provide measurable performance improvements over classical approaches.`,
+      introduction: `In recent years, ${quantumCompany} has established a strategic partnership with ${partner} to explore the potential of quantum computing in solving complex computational challenges. This collaboration represents a significant step forward in the practical application of quantum technologies in enterprise environments. The partnership was formed to address growing computational demands that traditional computing infrastructure could no longer handle efficiently, particularly in areas requiring complex optimization and pattern recognition capabilities.`,
+      challenge: `${partner} faced significant computational challenges in their operations that required innovative approaches beyond traditional computing capabilities. Traditional computing methods were reaching their limits in handling the scale and complexity of modern business requirements, particularly in areas involving large-scale optimization problems and complex data analysis tasks. The partnership aimed to identify specific use cases where quantum computing could provide meaningful advantages over classical approaches, with a focus on problems that demonstrate clear quantum advantage potential.`,
+      solution: `${quantumCompany} developed a comprehensive quantum computing solution tailored to ${partner}'s specific operational needs and technical requirements. The solution leveraged advanced quantum algorithms and specialized hardware platforms to address the computational bottlenecks identified in the challenge assessment phase. The approach included hybrid quantum-classical algorithms that could integrate with existing infrastructure while providing quantum advantages for specific computational tasks.`,
+      implementation: `The implementation followed a carefully structured approach starting with proof-of-concept development, followed by extensive pilot testing, and gradual scaling to production environments. The teams worked closely to ensure seamless integration with existing systems while maintaining operational stability and performance standards. The implementation process included comprehensive testing phases, staff training programs, and gradual rollout strategies to minimize disruption to existing operations.`,
+      results_and_business_impact: `The partnership demonstrated promising results in the targeted application areas with measurable improvements in computational efficiency and problem-solving capabilities. While specific metrics may vary depending on the application domain, the collaboration has established a foundation for future quantum computing initiatives and has positioned both companies at the forefront of quantum technology adoption. The business impact includes improved operational efficiency, reduced computational costs, and enhanced competitive positioning in the market.`,
+      future_directions: `Both companies plan to expand their quantum computing collaboration, exploring additional use cases and scaling successful implementations across broader operational domains. This partnership serves as a model for other organizations considering quantum computing adoption and demonstrates the potential for quantum technologies to deliver practical business value. Future plans include expanding the quantum computing infrastructure, developing additional quantum algorithms, and exploring new application areas that could benefit from quantum advantages.`,
+      technical_details: `The solution utilized quantum algorithms appropriate for the problem domain, implemented on suitable quantum hardware platforms with careful attention to quantum error correction and noise mitigation strategies. Technical integration challenges were addressed through hybrid quantum-classical approaches that allowed for seamless integration with existing infrastructure while maintaining quantum advantages for specific computational tasks.`,
       algorithms: ["Quantum Optimization", "Variational Quantum Algorithms"],
       industries: ["Technology", "Enterprise Computing"],
       personas: ["CTO", "Quantum Research Lead", "Business Decision-Maker"],
@@ -154,6 +155,9 @@ export class QuantumResearchEngine {
   async executeResearchWithRetries(prompt, partnership) {
     let lastError;
     
+    // Store partnership for mock API access
+    this.currentPartnership = partnership;
+    
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
         console.log(`Research attempt ${attempt} for ${partnership.company} + ${partnership.partner}`);
@@ -225,6 +229,7 @@ export class QuantumResearchEngine {
    * Create error result
    */
   createErrorResult(partnership, error) {
+    console.error('Creating error result:', error);
     return {
       id: partnership.id,
       company: partnership.company,
