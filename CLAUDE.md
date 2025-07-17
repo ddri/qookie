@@ -56,3 +56,8 @@ This is a React-based quantum computing case study processor that generates stru
 - React 18.2.0
 - Lucide React for icons
 - Vite for build tooling
+
+## Important Instructions
+- NEVER add Claude attribution or co-author tags to git commits
+- Keep commit messages clean and professional without AI tool references
+- User will start servers themselves - do not run server commands automatically
