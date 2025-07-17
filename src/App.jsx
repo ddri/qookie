@@ -29,7 +29,11 @@ function App() {
       if (cachedCaseStudy) {
         setCaseStudy(cachedCaseStudy);
         console.log('Loaded cached case study for partnership:', selectedPartnership.id);
+      } else {
+        setCaseStudy(null);
       }
+    } else {
+      setCaseStudy(null);
     }
   }, [selectedPartnership]);
 
@@ -587,214 +591,218 @@ Return ONLY the JSON object above with your analysis results.`;
               <div style={{ 
                 backgroundColor: 'white',
                 borderRadius: '12px',
-                padding: '24px',
-                marginBottom: '30px',
+                padding: '0',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                border: '1px solid #e2e8f0'
+                border: '1px solid #e2e8f0',
+                overflow: 'hidden'
               }}>
-                <h3 style={{ 
-                  margin: '0 0 20px 0', 
-                  fontSize: '20px', 
-                  fontWeight: '600',
-                  color: '#1e293b'
+                {/* Partnership Header */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  padding: '32px 32px 24px 32px'
                 }}>
-                  🎯 Selected Partnership
-                </h3>
-                
-                <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <span style={{ fontWeight: '600', color: '#374151', minWidth: '140px' }}>Quantum Company:</span>
-                    <span style={{ color: '#1e293b' }}>{selectedPartnership.company}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
+                    <div>
+                      <h1 style={{ 
+                        margin: '0 0 8px 0', 
+                        fontSize: '28px', 
+                        fontWeight: '700',
+                        lineHeight: '1.2'
+                      }}>
+                        {selectedPartnership.company}
+                      </h1>
+                      <div style={{ 
+                        fontSize: '20px', 
+                        fontWeight: '500',
+                        opacity: '0.9'
+                      }}>
+                        Partnership with {selectedPartnership.partner}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>
+                        {selectedPartnership.year || 'Unknown Year'}
+                      </div>
+                      <div style={{ 
+                        fontSize: '14px', 
+                        opacity: '0.8',
+                        padding: '2px 8px',
+                        backgroundColor: 'rgba(255,255,255,0.2)',
+                        borderRadius: '4px',
+                        display: 'inline-block'
+                      }}>
+                        {selectedPartnership.status || 'Unknown Status'}
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <span style={{ fontWeight: '600', color: '#374151', minWidth: '140px' }}>Commercial Partner:</span>
-                    <span style={{ color: '#1e293b' }}>{selectedPartnership.partner}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <span style={{ fontWeight: '600', color: '#374151', minWidth: '140px' }}>Year:</span>
-                    <span style={{ color: '#1e293b' }}>{selectedPartnership.year || 'Unknown'}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <span style={{ fontWeight: '600', color: '#374151', minWidth: '140px' }}>Status:</span>
-                    <span style={{ color: '#1e293b' }}>{selectedPartnership.status || 'Unknown'}</span>
-                  </div>
-                </div>
-                
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <button 
-                    onClick={() => generateCaseStudy(selectedPartnership)}
-                    disabled={loading}
-                    style={{
-                      padding: '14px 28px',
-                      backgroundColor: loading ? '#94a3b8' : '#3b82f6',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      cursor: loading ? 'not-allowed' : 'pointer',
-                      fontSize: '16px',
-                      fontWeight: '600'
-                    }}
-                  >
-                    {loading ? 'Generating...' : '🔬 Generate Case Study'}
-                  </button>
-
-                  {/* Regenerate button - only show if case study exists */}
-                  {caseStudy && !loading && (
+                  
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                     <button 
-                      onClick={() => generateCaseStudy(selectedPartnership, true)}
+                      onClick={() => generateCaseStudy(selectedPartnership)}
+                      disabled={loading}
                       style={{
-                        padding: '14px 20px',
-                        backgroundColor: '#f59e0b',
+                        padding: '12px 24px',
+                        backgroundColor: loading ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.2)',
+                        color: 'white',
+                        border: '1px solid rgba(255,255,255,0.3)',
+                        borderRadius: '8px',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        backdropFilter: 'blur(10px)'
+                      }}
+                    >
+                      {loading ? 'Generating...' : '🔬 Generate Case Study'}
+                    </button>
+
+                    {/* Regenerate button */}
+                    {caseStudy && !loading && (
+                      <button 
+                        onClick={() => generateCaseStudy(selectedPartnership, true)}
+                        style={{
+                          padding: '12px 18px',
+                          backgroundColor: 'rgba(245, 158, 11, 0.9)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '600'
+                        }}
+                      >
+                        🔄 Regenerate
+                      </button>
+                    )}
+
+                    {/* Analyze button */}
+                    <button 
+                      onClick={() => analyzeCaseStudy(selectedPartnership, caseStudy)}
+                      disabled={!caseStudy || loading || analyzing}
+                      style={{
+                        padding: '12px 18px',
+                        backgroundColor: !caseStudy || loading || analyzing 
+                          ? 'rgba(255,255,255,0.2)' 
+                          : caseStudy?.advancedMetadata?._analyzed 
+                            ? 'rgba(124, 58, 237, 0.9)' 
+                            : 'rgba(5, 150, 105, 0.9)',
                         color: 'white',
                         border: 'none',
                         borderRadius: '8px',
-                        cursor: 'pointer',
+                        cursor: !caseStudy || loading || analyzing ? 'not-allowed' : 'pointer',
                         fontSize: '14px',
-                        fontWeight: '600'
+                        fontWeight: '600',
+                        opacity: !caseStudy || loading || analyzing ? 0.6 : 1
                       }}
                     >
-                      🔄 Regenerate
+                      {analyzing ? (
+                        '🔍 Analyzing...'
+                      ) : caseStudy?.advancedMetadata?._analyzed ? (
+                        '✅ Re-analyze'
+                      ) : (
+                        '🔍 Analyze Case Study'
+                      )}
                     </button>
-                  )}
-
-                  {/* Analyze button with different states */}
-                  <button 
-                    onClick={() => analyzeCaseStudy(selectedPartnership, caseStudy)}
-                    disabled={!caseStudy || loading || analyzing}
-                    style={{
-                      padding: '14px 20px',
-                      backgroundColor: !caseStudy || loading || analyzing 
-                        ? '#94a3b8' 
-                        : caseStudy?.advancedMetadata?._analyzed 
-                          ? '#7c3aed' 
-                          : '#059669',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      cursor: !caseStudy || loading || analyzing ? 'not-allowed' : 'pointer',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      opacity: !caseStudy || loading || analyzing ? 0.6 : 1
-                    }}
-                  >
-                    {analyzing ? (
-                      '🔍 Analyzing...'
-                    ) : caseStudy?.advancedMetadata?._analyzed ? (
-                      '✅ Re-analyze'
-                    ) : (
-                      '🔍 Analyze Case Study'
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Loading State */}
-            {loading && (
-              <div style={{ 
-                backgroundColor: 'white',
-                borderRadius: '12px',
-                padding: '40px',
-                textAlign: 'center',
-                marginBottom: '30px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                border: '1px solid #e2e8f0'
-              }}>
-                <div style={{ fontSize: '24px', marginBottom: '16px' }}>🔬</div>
-                <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600', color: '#1e293b' }}>
-                  Researching Partnership
-                </h3>
-                <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
-                  Claude AI is analyzing the partnership and generating a comprehensive case study...
-                </p>
-              </div>
-            )}
-
-            {/* Error Display */}
-            {error && (
-              <div style={{ 
-                backgroundColor: '#fef2f2',
-                borderRadius: '12px',
-                padding: '24px',
-                marginBottom: '30px',
-                border: '1px solid #fecaca'
-              }}>
-                <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', fontWeight: '600', color: '#dc2626' }}>
-                  Generation Failed
-                </h3>
-                <p style={{ margin: 0, color: '#7f1d1d', fontSize: '14px' }}>
-                  {error}
-                </p>
-              </div>
-            )}
-
-            {/* Case Study Display */}
-            {caseStudy && (
-              <div style={{ 
-                backgroundColor: 'white',
-                borderRadius: '12px',
-                padding: '32px',
-                marginBottom: '40px',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-                border: '1px solid #e2e8f0'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
-                  <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: '#1e293b' }}>
-                    📄 Case Study
-                  </h2>
-                  
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    {/* Export button */}
-                    <button
-                      onClick={() => exportToMarkdown(selectedPartnership, caseStudy)}
-                      style={{
-                        padding: '8px 16px',
-                        backgroundColor: '#059669',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.target.style.backgroundColor = '#047857';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.backgroundColor = '#059669';
-                      }}
-                    >
-                      📄 Export Markdown
-                    </button>
-
-                    {/* Cache status indicator */}
-                    {caseStudy && caseStudy._cached && (
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        backgroundColor: '#ecfdf5',
-                        border: '1px solid #bbf7d0',
-                        borderRadius: '6px',
-                        padding: '6px 12px',
-                        fontSize: '12px',
-                        color: '#065f46'
-                      }}>
-                        <span>💾</span>
-                        <span style={{ fontWeight: '500' }}>
-                          Cached {new Date(caseStudy._cachedAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 </div>
+
+                {/* Content Area */}
+                <div style={{ padding: '32px' }}>
+                  {/* Loading State */}
+                  {loading && (
+                    <div style={{ 
+                      textAlign: 'center',
+                      padding: '60px 40px'
+                    }}>
+                      <div style={{ fontSize: '24px', marginBottom: '16px' }}>🔬</div>
+                      <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600', color: '#1e293b' }}>
+                        Researching Partnership
+                      </h3>
+                      <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
+                        Claude AI is analyzing the partnership and generating a comprehensive case study...
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Error Display */}
+                  {error && (
+                    <div style={{ 
+                      backgroundColor: '#fef2f2',
+                      borderRadius: '8px',
+                      padding: '24px',
+                      border: '1px solid #fecaca',
+                      marginBottom: '24px'
+                    }}>
+                      <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', fontWeight: '600', color: '#dc2626' }}>
+                        Generation Failed
+                      </h3>
+                      <p style={{ margin: 0, color: '#7f1d1d', fontSize: '14px' }}>
+                        {error}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Case Study Content */}
+                  {caseStudy && (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
+                        <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: '#1e293b' }}>
+                          📄 Case Study
+                        </h2>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          {/* Export button */}
+                          <button
+                            onClick={() => exportToMarkdown(selectedPartnership, caseStudy)}
+                            style={{
+                              padding: '8px 16px',
+                              backgroundColor: '#059669',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.backgroundColor = '#047857';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.backgroundColor = '#059669';
+                            }}
+                          >
+                            📄 Export Markdown
+                          </button>
+
+                          {/* Cache status indicator */}
+                          {caseStudy && caseStudy._cached && (
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              backgroundColor: '#ecfdf5',
+                              border: '1px solid #bbf7d0',
+                              borderRadius: '6px',
+                              padding: '6px 12px',
+                              fontSize: '12px',
+                              color: '#065f46'
+                            }}>
+                              <span>💾</span>
+                              <span style={{ fontWeight: '500' }}>
+                                Cached {new Date(caseStudy._cachedAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                 
-                <h3 style={{ fontSize: '22px', fontWeight: '600', color: '#1e293b', marginBottom: '24px' }}>
-                  {caseStudy.title}
-                </h3>
+                      <h3 style={{ fontSize: '22px', fontWeight: '600', color: '#1e293b', marginBottom: '24px' }}>
+                        {caseStudy.title}
+                      </h3>
                 
                 {caseStudy.summary && (
                   <div style={{ marginBottom: '32px' }}>
@@ -1025,9 +1033,12 @@ Return ONLY the JSON object above with your analysis results.`;
                           {new Date(caseStudy.advancedMetadata._analyzedAt).toLocaleString()}
                         </span>
                       </div>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </div>
