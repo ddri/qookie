@@ -7,9 +7,12 @@
 - ✅ Regeneration capability with force refresh
 - ✅ Recently researched history tracking
 - ✅ Cached status indicators in UI
+- ✅ Three-stage workflow: Generate → Analyze → Collect References
+- ✅ Web search integration for real academic papers and business coverage
+- ✅ Markdown export with all sections (case study + metadata + references)
 
 ## In Progress
-- 🔄 Markdown export functionality
+- 🔄 Improve references search quality and relevance
 
 ## Next Priority Features
 
@@ -32,6 +35,13 @@
 - "Generate All" button for selected partnerships
 - Progress indicators for batch operations
 - Queue management for API rate limits
+
+### Enhanced References & Search
+- Improve search query optimization for better academic paper results
+- Add direct integration with arXiv, PubMed, and other academic databases
+- Implement smarter relevance scoring and filtering
+- Add citation quality verification
+- Support for DOI lookup and metadata enrichment
 
 ### Enhanced UI/UX
 - Responsive design for mobile/tablet devices

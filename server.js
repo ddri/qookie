@@ -16,6 +16,155 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Web search endpoint for finding real references
+app.post('/api/search', async (req, res) => {
+  try {
+    const { query, type } = req.body; // type: 'academic' or 'business'
+    
+    const serperApiKey = process.env.SERPER_API_KEY;
+    if (!serperApiKey) {
+      return res.status(500).json({ error: 'Serper API key not configured' });
+    }
+
+    const searchUrl = type === 'academic' 
+      ? 'https://google.serper.dev/scholar'  // Google Scholar for academic papers
+      : 'https://google.serper.dev/search';  // Regular search for business content
+
+    const response = await fetch(searchUrl, {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': serperApiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        q: query,
+        num: type === 'academic' ? 10 : 15, // More results for business content
+        ...(type === 'academic' && { gl: 'us', hl: 'en' })
+      })
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(`Search API error: ${response.status}`);
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error('Search error:', error);
+    res.status(500).json({ error: 'Search request failed: ' + error.message });
+  }
+});
+
+// References collection endpoint
+app.post('/api/references', async (req, res) => {
+  const startTime = Date.now();
+  
+  try {
+    const { academicData, businessData, caseStudy, model } = req.body;
+    
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: 'Anthropic API key not configured' });
+    }
+
+    // Create references prompt
+    const prompt = `Here is a case study about a quantum computing partnership:
+
+${JSON.stringify(caseStudy, null, 2)}
+
+Here are search results for relevant scientific papers and further reading:
+
+Academic Papers: ${JSON.stringify(academicData.organic || [], null, 2)}
+Business Coverage: ${JSON.stringify(businessData.organic || [], null, 2)}
+
+Find the relevant scientific papers and further reading based on this case study content. Return only JSON:
+
+{
+  "references": [
+    {
+      "title": "paper title",
+      "authors": ["authors"],
+      "journal": "journal",
+      "year": "year",
+      "url": "real url",
+      "citation": "formatted citation"
+    }
+  ],
+  "further_reading": [
+    {
+      "title": "article title",
+      "source": "source",
+      "url": "real url",
+      "type": "news|blog_post|press_release",
+      "date": "date",
+      "description": "description"
+    }
+  ],
+  "collection_notes": "notes"
+}`;
+
+    const selectedModel = model || 'claude-3-5-sonnet-20241022';
+    console.log(`Collecting references using model: ${selectedModel}`);
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: selectedModel,
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('Anthropic API error:', error);
+      return res.status(response.status).json({ error: `API call failed: ${response.status} ${response.statusText}` });
+    }
+
+    const data = await response.json();
+    const responseTime = Date.now() - startTime;
+    
+    console.log(`References collection completed in ${responseTime}ms`);
+
+    // Parse JSON response
+    let referencesData;
+    try {
+      const responseText = data.content[0].text.trim();
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      const jsonText = jsonMatch ? jsonMatch[0] : responseText;
+      referencesData = JSON.parse(jsonText);
+      console.log('Successfully parsed references JSON');
+    } catch (parseError) {
+      console.warn('Failed to parse references response as JSON:', parseError.message);
+      referencesData = {
+        references: [],
+        further_reading: [],
+        collection_notes: 'Failed to parse references response',
+        raw_response: data.content[0].text
+      };
+    }
+
+    res.json({ 
+      references: referencesData,
+      metadata: {
+        responseTime,
+        timestamp: new Date().toISOString(),
+        tokenCount: data.usage?.total_tokens || 'unknown'
+      }
+    });
+
+  } catch (error) {
+    console.error('References collection error:', error);
+    res.status(500).json({ error: 'References collection failed: ' + error.message });
+  }
+});
+
 // Research endpoint for partnerships
 app.post('/api/research', async (req, res) => {
   const startTime = Date.now();
