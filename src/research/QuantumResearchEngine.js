@@ -101,7 +101,6 @@ export class QuantumResearchEngine {
         company: quantumCompany,
         partner: partner,
         year: "TBD",
-        status: "TBD",
         research_date: new Date().toISOString().split('T')[0],
         word_count: "approximately 500"
       }

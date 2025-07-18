@@ -1,23 +1,23 @@
-id,quantum_company,commercial_partner,status,year,notes
-0,1QBit,"Accenture, Biogen",completed,2017,Drug discovery for neurological conditions
-1,Amazon AWS Braket,BMW,active,2022,Quantum computing for automotive optimization
-2,Classiq,Rolls Royce,active,2023,Aerospace engineering applications
-3,Classiq,Sumitomo Corporation,active,2023,Trading and logistics optimization
-4,D-Wave,Lockheed Martin,active,2011,First commercial quantum partnership
-5,D-Wave,Pattison Food Group,completed,2019,Grocery optimization
-6,Google Quantum AI,Boehringer Ingelheim,active,2021,Pharmaceutical research
-7,IBM,Boeing Aerospace,active,2020,Aerospace optimization
-8,IBM,ExxonMobil,active,2019,Energy sector applications
-9,IBM,Daimler (Mercedes-Benz),active,2020,Battery and materials research
-10,IonQ,Airbus,active,2022,Aircraft loading optimization
-11,Microsoft Azure Quantum,Ford,active,2022,Manufacturing optimization
-12,Pasqal,BMW Group,active,2021,Materials simulation
-13,QC Ware,Roche,active,2020,Drug discovery
-14,QC Ware,Covestro,active,2021,Chemical manufacturing
-15,QC Ware,Goldman Sachs,active,2019,Financial modeling
-16,Quantinuum,Google DeepMind,announced,2024,AI research collaboration
-17,Quantinuum,Mitsui & Co.,active,2023,Trading optimization
-18,Quantinuum,HSBC,active,2023,Financial services
-19,Quantum Brilliance,Pawsey Supercomputing Center,active,2022,Hybrid computing
-20,QuEra,Pawsey Supercomputing Center,active,2023,Research collaboration
-21,SandboxAQ,Deloitte,active,2023,Enterprise consulting
+id,quantum_company,commercial_partner,year,notes
+0,1QBit,"Accenture, Biogen",2017,Drug discovery for neurological conditions
+1,Amazon AWS Braket,BMW,2022,Quantum computing for automotive optimization
+2,Classiq,Rolls Royce,2023,Aerospace engineering applications
+3,Classiq,Sumitomo Corporation,2023,Trading and logistics optimization
+4,D-Wave,Lockheed Martin,2011,First commercial quantum partnership
+5,D-Wave,Pattison Food Group,2019,Grocery optimization
+6,Google Quantum AI,Boehringer Ingelheim,2021,Pharmaceutical research
+7,IBM,Boeing Aerospace,2020,Aerospace optimization
+8,IBM,ExxonMobil,2019,Energy sector applications
+9,IBM,Daimler (Mercedes-Benz),2020,Battery and materials research
+10,IonQ,Airbus,2022,Aircraft loading optimization
+11,Microsoft Azure Quantum,Ford,2022,Manufacturing optimization
+12,Pasqal,BMW Group,2021,Materials simulation
+13,QC Ware,Roche,2020,Drug discovery
+14,QC Ware,Covestro,2021,Chemical manufacturing
+15,QC Ware,Goldman Sachs,2019,Financial modeling
+16,Quantinuum,Google DeepMind,2024,AI research collaboration
+17,Quantinuum,Mitsui & Co.,2023,Trading optimization
+18,Quantinuum,HSBC,2023,Financial services
+19,Quantum Brilliance,Pawsey Supercomputing Center,2022,Hybrid computing
+20,QuEra,Pawsey Supercomputing Center,2023,Research collaboration
+21,SandboxAQ,Deloitte,2023,Enterprise consulting

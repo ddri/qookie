@@ -14,6 +14,10 @@ function App() {
     industries: [],
     personas: []
   });
+  const [selectedModel, setSelectedModel] = useState('claude-sonnet-4-20250514');
+  const [githubPushing, setGithubPushing] = useState(false);
+  const [githubStatus, setGithubStatus] = useState(null); // 'success', 'error', or null
+  const [collectingReferences, setCollectingReferences] = useState(false);
 
   // Load CSV data and research history on mount
   useEffect(() => {
@@ -29,7 +33,11 @@ function App() {
       if (cachedCaseStudy) {
         setCaseStudy(cachedCaseStudy);
         console.log('Loaded cached case study for partnership:', selectedPartnership.id);
+      } else {
+        setCaseStudy(null);
       }
+    } else {
+      setCaseStudy(null);
     }
   }, [selectedPartnership]);
 
@@ -63,7 +71,6 @@ function App() {
         id: row.id !== undefined && row.id !== '' ? parseInt(row.id) : index + 1,
         company: row.quantum_company || '',
         partner: row.commercial_partner || '',
-        status: row.status || '',
         year: row.year || '',
         notes: row.notes || ''
       };
@@ -85,21 +92,38 @@ function App() {
       ]);
 
       const parseMarkdownList = (text) => {
-        // Extract items from markdown list (lines starting with - or *)
+        // Extract items from markdown list (lines starting with - or *) OR plain text lines
         return text
           .split('\n')
-          .filter(line => line.trim().match(/^[-*]\s+/))
+          .map(line => line.trim())
+          .filter(line => {
+            // Include lines that start with - or * (markdown lists)
+            if (line.match(/^[-*]\s+/)) return true;
+            // Include non-empty lines that don't start with # (not headers)
+            if (line.length > 0 && !line.startsWith('#')) return true;
+            return false;
+          })
           .map(line => line.replace(/^[-*]\s+/, '').trim())
           .filter(item => item.length > 0);
       };
 
-      setReferenceLists({
+      const parsedLists = {
         algorithms: parseMarkdownList(algorithmsText),
         industries: parseMarkdownList(industriesText),
         personas: parseMarkdownList(personasText)
-      });
-
-      console.log('Reference lists loaded successfully');
+      };
+      
+      // DEBUG: Log parsed reference lists in detail
+      console.log('🔍 DEBUG: Parsed reference lists:');
+      console.log('- Algorithms count:', parsedLists.algorithms.length);
+      console.log('- Algorithms sample:', parsedLists.algorithms.slice(0, 3));
+      console.log('- Industries count:', parsedLists.industries.length);
+      console.log('- Industries sample:', parsedLists.industries.slice(0, 3));
+      console.log('- Personas count:', parsedLists.personas.length);
+      console.log('- Personas sample:', parsedLists.personas.slice(0, 3));
+      
+      setReferenceLists(parsedLists);
+      console.log('✅ Reference lists loaded successfully');
     } catch (error) {
       console.error('Failed to load reference lists:', error);
     }
@@ -180,7 +204,6 @@ function App() {
 - **Quantum Company**: ${partnership.company}
 - **Commercial Partner**: ${partnership.partner}
 - **Year**: ${partnership.year || 'Unknown'}
-- **Status**: ${partnership.status || 'Unknown'}
 - **Generated**: ${formatDate(caseStudy._cachedAt || new Date().toISOString())}
 - **Cached**: ${caseStudy._cached ? 'Yes' : 'No'}
 
@@ -210,6 +233,26 @@ ${caseStudy.future_directions}
 - **Industries**: ${caseStudy.metadata.industries && caseStudy.metadata.industries.join(', ') || 'None specified'}
 - **Target Personas**: ${caseStudy.metadata.personas && caseStudy.metadata.personas.join(', ') || 'None specified'}
 - **Confidence Score**: ${caseStudy.metadata.confidence_score || 'Not provided'}
+
+` : ''}${caseStudy.advancedMetadata ? `## Advanced Metadata
+- **Algorithms**: ${caseStudy.advancedMetadata.algorithms && caseStudy.advancedMetadata.algorithms.join(', ') || 'None specified'}
+- **Industries**: ${caseStudy.advancedMetadata.industries && caseStudy.advancedMetadata.industries.join(', ') || 'None specified'}
+- **Target Personas**: ${caseStudy.advancedMetadata.personas && caseStudy.advancedMetadata.personas.join(', ') || 'None specified'}
+- **Confidence Score**: ${caseStudy.advancedMetadata.confidence_score || 'Not provided'}
+- **Analysis Notes**: ${caseStudy.advancedMetadata.analysis_notes || 'None'}
+- **Analyzed**: ${caseStudy.advancedMetadata._analyzedAt ? new Date(caseStudy.advancedMetadata._analyzedAt).toLocaleString() : 'Not analyzed'}
+
+` : ''}${caseStudy.references && caseStudy.references.length > 0 ? `## References
+
+${caseStudy.references.map(ref => `- ${ref.citation || `${ref.authors && ref.authors.join(', ')} (${ref.year}). ${ref.title}. ${ref.journal}.`}${ref.url ? ` Available at: ${ref.url}` : ''}`).join('\n')}
+
+` : ''}${caseStudy.furtherReading && caseStudy.furtherReading.length > 0 ? `## Further Reading
+
+${caseStudy.furtherReading.map(item => `- **${item.title}** - ${item.source} (${item.date})${item.description ? `: ${item.description}` : ''}${item.url ? ` [Read More](${item.url})` : ''}`).join('\n')}
+
+` : ''}${caseStudy.collectionNotes ? `## Collection Notes
+
+${caseStudy.collectionNotes}
 
 ` : ''}---
 *Generated by Quantum Partnership Research Tool*`;
@@ -254,14 +297,138 @@ ${caseStudy.future_directions}
     }
   };
 
+  const collectReferences = async (partnership, caseStudy) => {
+    if (!caseStudy) return;
+    
+    setCollectingReferences(true);
+    setError(null);
+
+    try {
+      console.log('Collecting references and further reading...', partnership);
+      
+      // Step 1: Search for academic papers
+      const academicQuery = `"${partnership.company}" "${partnership.partner}" quantum computing research paper`;
+      console.log('Searching for academic papers:', academicQuery);
+      
+      const academicResponse = await fetch('http://localhost:3002/api/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: academicQuery,
+          type: 'academic'
+        })
+      });
+      
+      if (!academicResponse.ok) {
+        throw new Error(`Academic search failed: ${academicResponse.status}`);
+      }
+      
+      const academicData = await academicResponse.json();
+      console.log('Academic search results:', academicData);
+      
+      // Step 2: Search for business coverage
+      const businessQuery = `"${partnership.company}" "${partnership.partner}" partnership announcement blog press release`;
+      console.log('Searching for business coverage:', businessQuery);
+      
+      const businessResponse = await fetch('http://localhost:3002/api/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: businessQuery,
+          type: 'business'
+        })
+      });
+      
+      if (!businessResponse.ok) {
+        throw new Error(`Business search failed: ${businessResponse.status}`);
+      }
+      
+      const businessData = await businessResponse.json();
+      console.log('Business search results:', businessData);
+      
+      // Step 3: Have Claude format the search results
+      const response = await fetch('http://localhost:3002/api/references', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          academicData,
+          businessData,
+          caseStudy,
+          model: selectedModel
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'References collection request failed');
+      }
+
+      // Parse the references results
+      let referencesResult;
+      try {
+        console.log('Raw references API response:', data);
+        
+        // The new /api/references endpoint returns data.references
+        if (data.references) {
+          referencesResult = data.references;
+          console.log('Found references in new endpoint response');
+        } else {
+          throw new Error('No references data in response');
+        }
+        
+        console.log('Final references result:', referencesResult);
+        console.log('References array:', referencesResult.references);
+        console.log('Further reading array:', referencesResult.further_reading);
+      } catch (parseError) {
+        console.error('Parse error details:', parseError);
+        throw new Error(`Failed to parse references results: ${parseError.message}`);
+      }
+
+      // Add references and further reading to case study
+      const enhancedCaseStudy = {
+        ...caseStudy,
+        references: referencesResult.references || [],
+        furtherReading: referencesResult.further_reading || [],
+        collectionNotes: referencesResult.collection_notes || '',
+        _referencesCollected: true,
+        _referencesCollectedAt: new Date().toISOString()
+      };
+      
+      console.log('Enhanced case study references:', enhancedCaseStudy.references);
+      console.log('Enhanced case study furtherReading:', enhancedCaseStudy.furtherReading);
+
+      // Save enhanced case study to cache
+      saveCaseStudyToCache(partnership.id, enhancedCaseStudy);
+      setCaseStudy(enhancedCaseStudy);
+
+      console.log('References and further reading collection completed successfully');
+
+    } catch (error) {
+      console.error('Error collecting references:', error);
+      setError(`Failed to collect references: ${error.message}`);
+    } finally {
+      setCollectingReferences(false);
+    }
+  };
+
   const analyzeCaseStudy = async (partnership, caseStudy) => {
     if (!caseStudy) return;
+    
     
     setAnalyzing(true);
     setError(null);
 
     try {
-      console.log('Analyzing case study with reference lists...', partnership);
+      console.log('🔍 DEBUG: Starting analysis for:', partnership.quantum_company, '+', partnership.commercial_partner);
+      console.log('🔍 DEBUG: Reference lists state at analysis time:');
+      console.log('- referenceLists object:', referenceLists);
+      console.log('- Algorithms array exists?', Array.isArray(referenceLists.algorithms));
+      console.log('- Algorithms count:', referenceLists.algorithms?.length || 0);
+      console.log('- Industries array exists?', Array.isArray(referenceLists.industries));
+      console.log('- Industries count:', referenceLists.industries?.length || 0);
+      console.log('- Personas array exists?', Array.isArray(referenceLists.personas));
+      console.log('- Personas count:', referenceLists.personas?.length || 0);
       
       const prompt = `You are analyzing a quantum computing case study. Your task is to match the case study content against provided reference lists and return ONLY a JSON object with the analysis results.
 
@@ -276,9 +443,14 @@ Results: ${caseStudy.results_and_business_impact || ''}
 Future: ${caseStudy.future_directions || ''}
 
 REFERENCE LISTS TO MATCH AGAINST:
-Algorithms: ${referenceLists.algorithms.join(', ')}
-Industries: ${referenceLists.industries.join(', ')}
-Personas: ${referenceLists.personas.join(', ')}
+Algorithms: ${referenceLists.algorithms?.join(', ') || 'No algorithms loaded'}
+Industries: ${referenceLists.industries?.join(', ') || 'No industries loaded'}
+Personas: ${referenceLists.personas?.join(', ') || 'No personas loaded'}
+
+🔍 DEBUG INFO:
+- Algorithms available: ${referenceLists.algorithms?.length || 0} items
+- Industries available: ${referenceLists.industries?.length || 0} items
+- Personas available: ${referenceLists.personas?.length || 0} items
 
 INSTRUCTIONS:
 1. Read the case study content carefully
@@ -307,15 +479,30 @@ INSTRUCTIONS:
 
 Return ONLY the JSON object above with your analysis results.`;
 
-      const response = await fetch('http://localhost:3002/api/research', {
+      // DEBUG: Log the complete prompt being sent
+      console.log('🔍 DEBUG: Analysis prompt being sent to API:');
+      console.log('- Prompt length:', prompt.length);
+      console.log('- Reference lists in prompt:');
+      console.log('  - Algorithms section includes:', prompt.includes('Algorithms:') ? 'YES' : 'NO');
+      console.log('  - Industries section includes:', prompt.includes('Industries:') ? 'YES' : 'NO');
+      console.log('  - Personas section includes:', prompt.includes('Personas:') ? 'YES' : 'NO');
+      if (referenceLists.algorithms?.length > 0) {
+        console.log('  - First algorithm in prompt:', referenceLists.algorithms[0]);
+      }
+      if (referenceLists.industries?.length > 0) {
+        console.log('  - First industry in prompt:', referenceLists.industries[0]);
+      }
+      if (referenceLists.personas?.length > 0) {
+        console.log('  - First persona in prompt:', referenceLists.personas[0]);
+      }
+
+      const response = await fetch('http://localhost:3002/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          company: partnership.company,
-          partner: partnership.partner,
-          year: partnership.year,
-          status: partnership.status,
-          notes: prompt
+          caseStudy: caseStudy,
+          analysisPrompt: prompt,
+          model: selectedModel
         })
       });
 
@@ -330,31 +517,12 @@ Return ONLY the JSON object above with your analysis results.`;
       try {
         console.log('Raw API response:', data);
         
-        // The response should be structured as a case study with metadata
-        if (data.caseStudy && data.caseStudy.metadata) {
-          analysisResult = data.caseStudy.metadata;
-          console.log('Found metadata in response:', analysisResult);
+        // The analyze endpoint returns { analysis: {...}, metadata: {...} }
+        if (data.analysis) {
+          analysisResult = data.analysis;
+          console.log('Found analysis in response:', analysisResult);
         } else {
-          // Fallback: try to parse as raw text
-          let responseText = '';
-          if (data.caseStudy && data.caseStudy.raw_response) {
-            responseText = data.caseStudy.raw_response;
-          } else if (data.caseStudy && data.caseStudy.summary) {
-            responseText = data.caseStudy.summary;
-          } else {
-            responseText = JSON.stringify(data);
-          }
-          
-          console.log('Parsing response text:', responseText);
-          
-          // Try to extract JSON from response
-          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-          const jsonText = jsonMatch ? jsonMatch[0] : responseText;
-          
-          console.log('Extracted JSON text:', jsonText);
-          
-          const fullResult = JSON.parse(jsonText);
-          analysisResult = fullResult.metadata || fullResult;
+          throw new Error('No analysis field found in response');
         }
         
         console.log('Final analysis result:', analysisResult);
@@ -416,8 +584,8 @@ Return ONLY the JSON object above with your analysis results.`;
           company: partnership.company,
           partner: partnership.partner,
           year: partnership.year,
-          status: partnership.status,
-          notes: partnership.notes
+          notes: partnership.notes,
+          model: selectedModel
         })
       });
 
@@ -441,6 +609,48 @@ Return ONLY the JSON object above with your analysis results.`;
     }
   };
 
+  const pushToGitHub = async (partnership, caseStudy) => {
+    if (!caseStudy) return;
+    
+    setGithubPushing(true);
+    setGithubStatus(null);
+    setError(null);
+
+    try {
+      const filename = `${partnership.company.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${partnership.partner.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${partnership.year}`;
+      
+      console.log('Pushing to GitHub:', filename);
+
+      const response = await fetch('http://localhost:3002/api/github/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          partnership: partnership,
+          caseStudy: caseStudy,
+          filename: filename
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'GitHub push failed');
+      }
+
+      setGithubStatus('success');
+      setTimeout(() => setGithubStatus(null), 5000);
+      console.log('Successfully pushed to GitHub:', data.files);
+
+    } catch (error) {
+      console.error('Error pushing to GitHub:', error);
+      setError(`Failed to push to GitHub: ${error.message}`);
+      setGithubStatus('error');
+      setTimeout(() => setGithubStatus(null), 5000);
+    } finally {
+      setGithubPushing(false);
+    }
+  };
+
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -456,21 +666,57 @@ Return ONLY the JSON object above with your analysis results.`;
         boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
-          <h1 style={{ 
-            margin: 0, 
-            fontSize: '28px', 
-            fontWeight: '700',
-            color: '#1e293b'
-          }}>
-            🔬 Quantum Partnership Research Tool
-          </h1>
-          <p style={{ 
-            margin: '8px 0 0 0', 
-            color: '#64748b', 
-            fontSize: '16px' 
-          }}>
-            Generate AI-powered case studies from quantum computing partnerships
-          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h1 style={{ 
+                margin: 0, 
+                fontSize: '28px', 
+                fontWeight: '700',
+                color: '#1e293b'
+              }}>
+                🔬 Quantum Partnership Research Tool
+              </h1>
+              <p style={{ 
+                margin: '8px 0 0 0', 
+                color: '#64748b', 
+                fontSize: '16px' 
+              }}>
+                Generate AI-powered case studies from quantum computing partnerships
+              </p>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <label style={{ 
+                fontSize: '14px', 
+                fontWeight: '500', 
+                color: '#374151' 
+              }}>
+                Claude Model:
+              </label>
+              <select 
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  fontSize: '14px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  backgroundColor: 'white',
+                  color: '#374151',
+                  cursor: 'pointer',
+                  minWidth: '260px'
+                }}
+              >
+                <option value="claude-opus-4-20250514">Claude 4 Opus (Most Capable)</option>
+                <option value="claude-sonnet-4-20250514">Claude 4 Sonnet (Latest & Recommended)</option>
+                <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku (Fast & Smart)</option>
+                <option value="claude-3-opus-20240229">Claude 3 Opus</option>
+                <option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option>
+                <option value="claude-3-haiku-20240307">Claude 3 Haiku (Fastest)</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -548,13 +794,9 @@ Return ONLY the JSON object above with your analysis results.`;
                   </div>
                   <div style={{ 
                     fontSize: '11px', 
-                    color: '#64748b',
-                    display: 'flex',
-                    gap: '8px'
+                    color: '#64748b'
                   }}>
                     <span>{partnership.year || 'Unknown'}</span>
-                    <span>•</span>
-                    <span>{partnership.status || 'Unknown'}</span>
                   </div>
                 </div>
                 );
@@ -587,214 +829,301 @@ Return ONLY the JSON object above with your analysis results.`;
               <div style={{ 
                 backgroundColor: 'white',
                 borderRadius: '12px',
-                padding: '24px',
-                marginBottom: '30px',
+                padding: '0',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                border: '1px solid #e2e8f0'
+                border: '1px solid #e2e8f0',
+                overflow: 'hidden'
               }}>
-                <h3 style={{ 
-                  margin: '0 0 20px 0', 
-                  fontSize: '20px', 
-                  fontWeight: '600',
-                  color: '#1e293b'
+                {/* Partnership Header */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  padding: '32px 32px 24px 32px'
                 }}>
-                  🎯 Selected Partnership
-                </h3>
-                
-                <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <span style={{ fontWeight: '600', color: '#374151', minWidth: '140px' }}>Quantum Company:</span>
-                    <span style={{ color: '#1e293b' }}>{selectedPartnership.company}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
+                    <div>
+                      <h1 style={{ 
+                        margin: '0 0 8px 0', 
+                        fontSize: '28px', 
+                        fontWeight: '700',
+                        lineHeight: '1.2'
+                      }}>
+                        {selectedPartnership.company}
+                      </h1>
+                      <div style={{ 
+                        fontSize: '20px', 
+                        fontWeight: '500',
+                        opacity: '0.9'
+                      }}>
+                        Partnership with {selectedPartnership.partner}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>
+                        {selectedPartnership.year || 'Unknown Year'}
+                      </div>
+                      <div style={{ 
+                        fontSize: '12px', 
+                        opacity: '0.7',
+                        padding: '2px 6px',
+                        backgroundColor: 'rgba(255,255,255,0.15)',
+                        borderRadius: '3px',
+                        display: 'inline-block'
+                      }}>
+                        {selectedModel.includes('opus-4') ? '4 Opus' :
+                         selectedModel.includes('sonnet-4') ? '4 Sonnet' :
+                         selectedModel.includes('3-5-sonnet') ? '3.5 Sonnet' :
+                         selectedModel.includes('3-5-haiku') ? '3.5 Haiku' :
+                         selectedModel.includes('3-opus') ? '3 Opus' :
+                         selectedModel.includes('3-sonnet') ? '3 Sonnet' :
+                         selectedModel.includes('3-haiku') ? '3 Haiku' : '4 Sonnet'}
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <span style={{ fontWeight: '600', color: '#374151', minWidth: '140px' }}>Commercial Partner:</span>
-                    <span style={{ color: '#1e293b' }}>{selectedPartnership.partner}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <span style={{ fontWeight: '600', color: '#374151', minWidth: '140px' }}>Year:</span>
-                    <span style={{ color: '#1e293b' }}>{selectedPartnership.year || 'Unknown'}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <span style={{ fontWeight: '600', color: '#374151', minWidth: '140px' }}>Status:</span>
-                    <span style={{ color: '#1e293b' }}>{selectedPartnership.status || 'Unknown'}</span>
-                  </div>
-                </div>
-                
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <button 
-                    onClick={() => generateCaseStudy(selectedPartnership)}
-                    disabled={loading}
-                    style={{
-                      padding: '14px 28px',
-                      backgroundColor: loading ? '#94a3b8' : '#3b82f6',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      cursor: loading ? 'not-allowed' : 'pointer',
-                      fontSize: '16px',
-                      fontWeight: '600'
-                    }}
-                  >
-                    {loading ? 'Generating...' : '🔬 Generate Case Study'}
-                  </button>
-
-                  {/* Regenerate button - only show if case study exists */}
-                  {caseStudy && !loading && (
+                  
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                     <button 
-                      onClick={() => generateCaseStudy(selectedPartnership, true)}
+                      onClick={() => generateCaseStudy(selectedPartnership)}
+                      disabled={loading}
                       style={{
-                        padding: '14px 20px',
-                        backgroundColor: '#f59e0b',
+                        padding: '12px 24px',
+                        backgroundColor: loading ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.2)',
+                        color: 'white',
+                        border: '1px solid rgba(255,255,255,0.3)',
+                        borderRadius: '8px',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        backdropFilter: 'blur(10px)'
+                      }}
+                    >
+                      {loading ? 'Generating...' : '🔬 Generate Case Study'}
+                    </button>
+
+                    {/* Regenerate button */}
+                    {caseStudy && !loading && (
+                      <button 
+                        onClick={() => generateCaseStudy(selectedPartnership, true)}
+                        style={{
+                          padding: '12px 18px',
+                          backgroundColor: 'rgba(245, 158, 11, 0.9)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '600'
+                        }}
+                      >
+                        🔄 Regenerate
+                      </button>
+                    )}
+
+                    {/* Analyze button */}
+                    <button 
+                      onClick={() => analyzeCaseStudy(selectedPartnership, caseStudy)}
+                      disabled={!caseStudy || loading || analyzing || collectingReferences}
+                      style={{
+                        padding: '12px 18px',
+                        backgroundColor: !caseStudy || loading || analyzing || collectingReferences
+                          ? 'rgba(255,255,255,0.2)' 
+                          : caseStudy?.advancedMetadata?._analyzed 
+                            ? 'rgba(124, 58, 237, 0.9)' 
+                            : 'rgba(5, 150, 105, 0.9)',
                         color: 'white',
                         border: 'none',
                         borderRadius: '8px',
-                        cursor: 'pointer',
+                        cursor: !caseStudy || loading || analyzing || collectingReferences ? 'not-allowed' : 'pointer',
                         fontSize: '14px',
-                        fontWeight: '600'
+                        fontWeight: '600',
+                        opacity: !caseStudy || loading || analyzing || collectingReferences ? 0.6 : 1
                       }}
                     >
-                      🔄 Regenerate
+                      {analyzing ? (
+                        '🔍 Analyzing...'
+                      ) : caseStudy?.advancedMetadata?._analyzed ? (
+                        '✅ Re-analyze'
+                      ) : (
+                        '🔍 Analyze Case Study'
+                      )}
                     </button>
-                  )}
 
-                  {/* Analyze button with different states */}
-                  <button 
-                    onClick={() => analyzeCaseStudy(selectedPartnership, caseStudy)}
-                    disabled={!caseStudy || loading || analyzing}
-                    style={{
-                      padding: '14px 20px',
-                      backgroundColor: !caseStudy || loading || analyzing 
-                        ? '#94a3b8' 
-                        : caseStudy?.advancedMetadata?._analyzed 
-                          ? '#7c3aed' 
-                          : '#059669',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      cursor: !caseStudy || loading || analyzing ? 'not-allowed' : 'pointer',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      opacity: !caseStudy || loading || analyzing ? 0.6 : 1
-                    }}
-                  >
-                    {analyzing ? (
-                      '🔍 Analyzing...'
-                    ) : caseStudy?.advancedMetadata?._analyzed ? (
-                      '✅ Re-analyze'
-                    ) : (
-                      '🔍 Analyze Case Study'
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Loading State */}
-            {loading && (
-              <div style={{ 
-                backgroundColor: 'white',
-                borderRadius: '12px',
-                padding: '40px',
-                textAlign: 'center',
-                marginBottom: '30px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                border: '1px solid #e2e8f0'
-              }}>
-                <div style={{ fontSize: '24px', marginBottom: '16px' }}>🔬</div>
-                <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600', color: '#1e293b' }}>
-                  Researching Partnership
-                </h3>
-                <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
-                  Claude AI is analyzing the partnership and generating a comprehensive case study...
-                </p>
-              </div>
-            )}
-
-            {/* Error Display */}
-            {error && (
-              <div style={{ 
-                backgroundColor: '#fef2f2',
-                borderRadius: '12px',
-                padding: '24px',
-                marginBottom: '30px',
-                border: '1px solid #fecaca'
-              }}>
-                <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', fontWeight: '600', color: '#dc2626' }}>
-                  Generation Failed
-                </h3>
-                <p style={{ margin: 0, color: '#7f1d1d', fontSize: '14px' }}>
-                  {error}
-                </p>
-              </div>
-            )}
-
-            {/* Case Study Display */}
-            {caseStudy && (
-              <div style={{ 
-                backgroundColor: 'white',
-                borderRadius: '12px',
-                padding: '32px',
-                marginBottom: '40px',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-                border: '1px solid #e2e8f0'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
-                  <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: '#1e293b' }}>
-                    📄 Case Study
-                  </h2>
-                  
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    {/* Export button */}
-                    <button
-                      onClick={() => exportToMarkdown(selectedPartnership, caseStudy)}
+                    {/* Collect References button */}
+                    <button 
+                      onClick={() => collectReferences(selectedPartnership, caseStudy)}
+                      disabled={!caseStudy || loading || analyzing || collectingReferences}
                       style={{
-                        padding: '8px 16px',
-                        backgroundColor: '#059669',
+                        padding: '12px 18px',
+                        backgroundColor: !caseStudy || loading || analyzing || collectingReferences
+                          ? 'rgba(255,255,255,0.2)' 
+                          : caseStudy?._referencesCollected 
+                            ? 'rgba(168, 85, 247, 0.9)' 
+                            : 'rgba(217, 119, 6, 0.9)',
                         color: 'white',
                         border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
+                        borderRadius: '8px',
+                        cursor: !caseStudy || loading || analyzing || collectingReferences ? 'not-allowed' : 'pointer',
                         fontSize: '14px',
-                        fontWeight: '500',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.target.style.backgroundColor = '#047857';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.backgroundColor = '#059669';
+                        fontWeight: '600',
+                        opacity: !caseStudy || loading || analyzing || collectingReferences ? 0.6 : 1
                       }}
                     >
-                      📄 Export Markdown
+                      {collectingReferences ? (
+                        '📚 Collecting...'
+                      ) : caseStudy?._referencesCollected ? (
+                        '✅ Re-collect'
+                      ) : (
+                        '📚 Collect References'
+                      )}
                     </button>
-
-                    {/* Cache status indicator */}
-                    {caseStudy && caseStudy._cached && (
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        backgroundColor: '#ecfdf5',
-                        border: '1px solid #bbf7d0',
-                        borderRadius: '6px',
-                        padding: '6px 12px',
-                        fontSize: '12px',
-                        color: '#065f46'
-                      }}>
-                        <span>💾</span>
-                        <span style={{ fontWeight: '500' }}>
-                          Cached {new Date(caseStudy._cachedAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 </div>
+
+                {/* Content Area */}
+                <div style={{ padding: '32px' }}>
+                  {/* Loading State */}
+                  {loading && (
+                    <div style={{ 
+                      textAlign: 'center',
+                      padding: '60px 40px'
+                    }}>
+                      <div style={{ fontSize: '24px', marginBottom: '16px' }}>🔬</div>
+                      <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600', color: '#1e293b' }}>
+                        Researching Partnership
+                      </h3>
+                      <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
+                        Claude AI is analyzing the partnership and generating a comprehensive case study...
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Error Display */}
+                  {error && (
+                    <div style={{ 
+                      backgroundColor: '#fef2f2',
+                      borderRadius: '8px',
+                      padding: '24px',
+                      border: '1px solid #fecaca',
+                      marginBottom: '24px'
+                    }}>
+                      <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', fontWeight: '600', color: '#dc2626' }}>
+                        Generation Failed
+                      </h3>
+                      <p style={{ margin: 0, color: '#7f1d1d', fontSize: '14px' }}>
+                        {error}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Case Study Content */}
+                  {caseStudy && (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
+                        <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: '#1e293b' }}>
+                          📄 Case Study
+                        </h2>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          {/* Export button */}
+                          <button
+                            onClick={() => exportToMarkdown(selectedPartnership, caseStudy)}
+                            style={{
+                              padding: '8px 16px',
+                              backgroundColor: '#059669',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.backgroundColor = '#047857';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.backgroundColor = '#059669';
+                            }}
+                          >
+                            📄 Export Markdown
+                          </button>
+
+                          {/* Push to GitHub button */}
+                          <button
+                            onClick={() => pushToGitHub(selectedPartnership, caseStudy)}
+                            disabled={githubPushing}
+                            style={{
+                              padding: '8px 16px',
+                              backgroundColor: githubPushing ? '#6b7280' : 
+                                             githubStatus === 'success' ? '#10b981' :
+                                             githubStatus === 'error' ? '#ef4444' : '#3b82f6',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '6px',
+                              cursor: githubPushing ? 'not-allowed' : 'pointer',
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              transition: 'background-color 0.2s'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!githubPushing) {
+                                if (githubStatus === 'success') {
+                                  e.target.style.backgroundColor = '#059669';
+                                } else if (githubStatus === 'error') {
+                                  e.target.style.backgroundColor = '#dc2626';
+                                } else {
+                                  e.target.style.backgroundColor = '#2563eb';
+                                }
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!githubPushing) {
+                                if (githubStatus === 'success') {
+                                  e.target.style.backgroundColor = '#10b981';
+                                } else if (githubStatus === 'error') {
+                                  e.target.style.backgroundColor = '#ef4444';
+                                } else {
+                                  e.target.style.backgroundColor = '#3b82f6';
+                                }
+                              }
+                            }}
+                          >
+                            {githubPushing ? '⏳ Pushing...' : 
+                             githubStatus === 'success' ? '✅ Pushed to GitHub' :
+                             githubStatus === 'error' ? '❌ Push Failed' : '🚀 Push to GitHub'}
+                          </button>
+
+                          {/* Cache status indicator */}
+                          {caseStudy && caseStudy._cached && (
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              backgroundColor: '#ecfdf5',
+                              border: '1px solid #bbf7d0',
+                              borderRadius: '6px',
+                              padding: '6px 12px',
+                              fontSize: '12px',
+                              color: '#065f46'
+                            }}>
+                              <span>💾</span>
+                              <span style={{ fontWeight: '500' }}>
+                                Cached {new Date(caseStudy._cachedAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                 
-                <h3 style={{ fontSize: '22px', fontWeight: '600', color: '#1e293b', marginBottom: '24px' }}>
-                  {caseStudy.title}
-                </h3>
+                      <h3 style={{ fontSize: '22px', fontWeight: '600', color: '#1e293b', marginBottom: '24px' }}>
+                        {caseStudy.title}
+                      </h3>
                 
                 {caseStudy.summary && (
                   <div style={{ marginBottom: '32px' }}>
@@ -1025,9 +1354,218 @@ Return ONLY the JSON object above with your analysis results.`;
                           {new Date(caseStudy.advancedMetadata._analyzedAt).toLocaleString()}
                         </span>
                       </div>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+
+                  {/* References Section */}
+                  {caseStudy.references && caseStudy.references.length > 0 && (
+                    <div style={{ 
+                      marginTop: '20px', 
+                      padding: '24px', 
+                      backgroundColor: '#fefce8', 
+                      borderRadius: '8px',
+                      border: '1px solid #fde047'
+                    }}>
+                      <h4 style={{ 
+                        fontSize: '18px', 
+                        fontWeight: '600',
+                        color: '#374151',
+                        marginBottom: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        📚 References
+                        <span style={{
+                          backgroundColor: '#f59e0b',
+                          color: 'white',
+                          fontSize: '10px',
+                          padding: '2px 6px',
+                          borderRadius: '3px',
+                          fontWeight: '500'
+                        }}>
+                          ACADEMIC
+                        </span>
+                      </h4>
+                      
+                      <div style={{ display: 'grid', gap: '16px' }}>
+                        {caseStudy.references.map((ref, index) => (
+                          <div key={index} style={{ 
+                            padding: '16px',
+                            backgroundColor: 'white',
+                            borderRadius: '6px',
+                            border: '1px solid #fed7aa'
+                          }}>
+                            <div style={{ fontWeight: '600', color: '#1f2937', marginBottom: '8px' }}>
+                              {ref.title}
+                            </div>
+                            <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '8px' }}>
+                              {ref.authors && ref.authors.join(', ')} ({ref.year})
+                            </div>
+                            <div style={{ fontSize: '13px', color: '#374151', marginBottom: '8px', fontStyle: 'italic' }}>
+                              {ref.journal}
+                            </div>
+                            {ref.relevance_note && (
+                              <div style={{ 
+                                fontSize: '12px', 
+                                color: '#065f46',
+                                backgroundColor: '#ecfdf5',
+                                padding: '8px',
+                                borderRadius: '4px',
+                                marginBottom: '8px',
+                                border: '1px solid #bbf7d0'
+                              }}>
+                                <strong>Relevance:</strong> {ref.relevance_note}
+                              </div>
+                            )}
+                            {ref.citation && (
+                              <div style={{ 
+                                fontSize: '12px', 
+                                color: '#4b5563',
+                                backgroundColor: '#f9fafb',
+                                padding: '8px',
+                                borderRadius: '4px',
+                                fontFamily: 'monospace'
+                              }}>
+                                {ref.citation}
+                              </div>
+                            )}
+                            {ref.url && (
+                              <div style={{ marginTop: '8px' }}>
+                                <a href={ref.url} target="_blank" rel="noopener noreferrer" style={{
+                                  color: '#3b82f6',
+                                  textDecoration: 'none',
+                                  fontSize: '12px'
+                                }}>
+                                  🔗 View Source
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Further Reading Section */}
+                  {caseStudy.furtherReading && caseStudy.furtherReading.length > 0 && (
+                    <div style={{ 
+                      marginTop: '20px', 
+                      padding: '24px', 
+                      backgroundColor: '#f0fdf4', 
+                      borderRadius: '8px',
+                      border: '1px solid #bbf7d0'
+                    }}>
+                      <h4 style={{ 
+                        fontSize: '18px', 
+                        fontWeight: '600',
+                        color: '#374151',
+                        marginBottom: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        📰 Further Reading
+                        <span style={{
+                          backgroundColor: '#059669',
+                          color: 'white',
+                          fontSize: '10px',
+                          padding: '2px 6px',
+                          borderRadius: '3px',
+                          fontWeight: '500'
+                        }}>
+                          BUSINESS
+                        </span>
+                      </h4>
+                      
+                      <div style={{ display: 'grid', gap: '16px' }}>
+                        {caseStudy.furtherReading.map((item, index) => (
+                          <div key={index} style={{ 
+                            padding: '16px',
+                            backgroundColor: 'white',
+                            borderRadius: '6px',
+                            border: '1px solid #bbf7d0'
+                          }}>
+                            <div style={{ fontWeight: '600', color: '#1f2937', marginBottom: '8px' }}>
+                              {item.title}
+                            </div>
+                            <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '8px' }}>
+                              {item.source} • {item.date}
+                            </div>
+                            {item.description && (
+                              <div style={{ fontSize: '13px', color: '#374151', marginBottom: '8px' }}>
+                                {item.description}
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <span style={{
+                                backgroundColor: item.type === 'blog_post' ? '#3b82f6' : 
+                                               item.type === 'press_release' ? '#8b5cf6' : 
+                                               item.type === 'news' ? '#ef4444' : '#6b7280',
+                                color: 'white',
+                                fontSize: '10px',
+                                padding: '2px 6px',
+                                borderRadius: '3px',
+                                fontWeight: '500'
+                              }}>
+                                {item.type?.replace('_', ' ').toUpperCase() || 'ARTICLE'}
+                              </span>
+                              {item.url && (
+                                <a href={item.url} target="_blank" rel="noopener noreferrer" style={{
+                                  color: '#3b82f6',
+                                  textDecoration: 'none',
+                                  fontSize: '12px'
+                                }}>
+                                  🔗 Read More
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Collection Notes */}
+                  {caseStudy.collectionNotes && (
+                    <div style={{ 
+                      marginTop: '20px', 
+                      padding: '16px', 
+                      backgroundColor: '#f8fafc', 
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0'
+                    }}>
+                      <h5 style={{ 
+                        fontSize: '14px', 
+                        fontWeight: '600',
+                        color: '#374151',
+                        marginBottom: '8px'
+                      }}>
+                        📝 Collection Notes
+                      </h5>
+                      <p style={{ 
+                        fontSize: '13px', 
+                        color: '#6b7280',
+                        margin: 0,
+                        fontStyle: 'italic'
+                      }}>
+                        {caseStudy.collectionNotes}
+                      </p>
+                      {caseStudy._referencesCollectedAt && (
+                        <p style={{ 
+                          fontSize: '12px', 
+                          color: '#9ca3af',
+                          margin: '8px 0 0 0'
+                        }}>
+                          Collected: {new Date(caseStudy._referencesCollectedAt).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -1122,6 +1660,26 @@ Return ONLY the JSON object above with your analysis results.`;
             animation: 'fadeIn 0.3s ease-out'
           }}>
             {exportStatus === 'success' ? '✅ Markdown exported successfully!' : '❌ Failed to export markdown'}
+          </div>
+        )}
+
+        {/* GitHub Status Toast */}
+        {githubStatus && (
+          <div style={{
+            position: 'fixed',
+            top: exportStatus ? '80px' : '20px', // Stack below export toast if both are showing
+            right: '20px',
+            padding: '12px 20px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: '500',
+            zIndex: 1000,
+            backgroundColor: githubStatus === 'success' ? '#10b981' : '#ef4444',
+            color: 'white',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            animation: 'fadeIn 0.3s ease-out'
+          }}>
+            {githubStatus === 'success' ? '🚀 Successfully pushed to GitHub!' : '❌ Failed to push to GitHub'}
           </div>
         )}
       </div>

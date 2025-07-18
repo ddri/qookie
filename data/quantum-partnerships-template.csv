@@ -1,0 +1,11 @@
+id,quantum_company,commercial_partner,year,notes
+0,Example Quantum Corp,Example Commercial Partner,2023,Brief description of the partnership focus and application area
+1,Rigetti,Roche,2023,Quantum machine learning for drug discovery and molecular simulation
+2,IonQ,Goldman Sachs,2022,Portfolio optimization and risk analysis using quantum algorithms
+3,Xanadu,Samsung,2023,Quantum photonic computing integration for hardware development
+4,PsiQuantum,Mercedes-Benz,2022,Quantum simulation for battery chemistry and materials science
+5,Quantinuum,JPMorgan Chase,2023,Quantum computing for financial modeling and fraud detection
+6,Oxford Quantum Computing,Rolls-Royce,2023,Quantum optimization for jet engine design and maintenance
+7,Atom Computing,Microsoft,2023,Neutral atom quantum computing platform development
+8,QuEra,Harvard University,2023,Quantum simulation for materials research and drug discovery
+9,Pasqal,Johnson & Johnson,2023,Quantum computing for pharmaceutical research and development
