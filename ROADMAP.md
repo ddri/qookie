@@ -1,4 +1,4 @@
-# Quantum Case Study Tool - Roadmap
+# Qookie - Roadmap
 
 ## Current Status
 - ✅ Real Claude AI integration with Express backend

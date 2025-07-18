@@ -1,4 +1,4 @@
-# Quantum Case Study Processor
+# Qookie
 
 A comprehensive React-based tool for researching, generating, and managing quantum computing partnership case studies with AI assistance.
 
@@ -34,8 +34,8 @@ A comprehensive React-based tool for researching, generating, and managing quant
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/ddri/quantum-case-study-tool.git
-   cd quantum-case-study-tool
+   git clone https://github.com/ddri/qookie.git
+   cd qookie
    ```
 
 2. **Install dependencies**
@@ -207,6 +207,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 For questions or issues:
-1. Check the [Issues](https://github.com/ddri/quantum-case-study-tool/issues) page
+1. Check the [Issues](https://github.com/ddri/qookie/issues) page
 2. Create a new issue with detailed information
 3. Include steps to reproduce any bugs

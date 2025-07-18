@@ -471,7 +471,7 @@ ${caseStudy.advancedMetadata ? `
       headers: {
         'Authorization': `token ${githubToken}`,
         'Content-Type': 'application/json',
-        'User-Agent': 'quantum-case-study-tool'
+        'User-Agent': 'qookie'
       },
       body: JSON.stringify({
         message: `Add case study: ${partnership.company} + ${partnership.partner}`,
@@ -492,7 +492,7 @@ ${caseStudy.advancedMetadata ? `
       headers: {
         'Authorization': `token ${githubToken}`,
         'Content-Type': 'application/json',
-        'User-Agent': 'quantum-case-study-tool'
+        'User-Agent': 'qookie'
       },
       body: JSON.stringify({
         message: `Add case study data: ${partnership.company} + ${partnership.partner}`,
@@ -526,6 +526,222 @@ ${caseStudy.advancedMetadata ? `
   } catch (error) {
     console.error('GitHub push error:', error);
     res.status(500).json({ error: 'GitHub push failed: ' + error.message });
+  }
+});
+
+// Session backup endpoint
+app.post('/api/github/backup-session', async (req, res) => {
+  const startTime = Date.now();
+  
+  try {
+    const { sessionData } = req.body;
+    
+    if (!sessionData) {
+      return res.status(400).json({ error: 'Session data is required' });
+    }
+
+    const backupGithubToken = process.env.BACKUP_GITHUB_TOKEN;
+    const backupRepoOwner = process.env.BACKUP_GITHUB_REPO_OWNER;
+    const backupRepoName = process.env.BACKUP_GITHUB_REPO_NAME;
+
+    if (!backupGithubToken || !backupRepoOwner || !backupRepoName) {
+      return res.status(500).json({ 
+        error: 'Backup GitHub configuration not complete. Please set BACKUP_GITHUB_TOKEN, BACKUP_GITHUB_REPO_OWNER, and BACKUP_GITHUB_REPO_NAME in .env file' 
+      });
+    }
+
+    // Create backup filename with timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupFilename = `backups/session-backup-${timestamp}.json`;
+
+    // Prepare backup data with metadata
+    const backupData = {
+      timestamp: new Date().toISOString(),
+      version: '1.0',
+      sessionData: sessionData,
+      metadata: {
+        userAgent: req.headers['user-agent'],
+        backupSize: JSON.stringify(sessionData).length,
+        itemCount: {
+          caseStudies: sessionData.caseStudies ? Object.keys(sessionData.caseStudies).length : 0,
+          researchHistory: sessionData.researchHistory ? sessionData.researchHistory.length : 0,
+          preferences: sessionData.preferences ? Object.keys(sessionData.preferences).length : 0
+        }
+      }
+    };
+
+    const backupContent = JSON.stringify(backupData, null, 2);
+
+    console.log(`Creating session backup: ${backupRepoOwner}/${backupRepoName}`);
+    console.log(`Backup size: ${backupContent.length} characters`);
+
+    // Push backup to GitHub
+    const response = await fetch(`https://api.github.com/repos/${backupRepoOwner}/${backupRepoName}/contents/${backupFilename}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${backupGithubToken}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'qookie'
+      },
+      body: JSON.stringify({
+        message: `Session backup - ${new Date().toLocaleString()}`,
+        content: Buffer.from(backupContent).toString('base64'),
+        branch: 'main'
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('GitHub API error (backup):', error);
+      throw new Error(`Failed to create backup: ${response.status} - ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    const responseTime = Date.now() - startTime;
+
+    console.log(`Session backup completed in ${responseTime}ms`);
+
+    res.json({
+      success: true,
+      backup: {
+        filename: backupFilename,
+        url: result.content.html_url,
+        size: backupContent.length,
+        timestamp: backupData.timestamp
+      },
+      metadata: backupData.metadata,
+      responseTime,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Session backup error:', error);
+    res.status(500).json({ error: 'Session backup failed: ' + error.message });
+  }
+});
+
+// Session restore endpoint
+app.post('/api/github/restore-session', async (req, res) => {
+  const startTime = Date.now();
+  
+  try {
+    const { backupFilename } = req.body;
+    
+    if (!backupFilename) {
+      return res.status(400).json({ error: 'Backup filename is required' });
+    }
+
+    const backupGithubToken = process.env.BACKUP_GITHUB_TOKEN;
+    const backupRepoOwner = process.env.BACKUP_GITHUB_REPO_OWNER;
+    const backupRepoName = process.env.BACKUP_GITHUB_REPO_NAME;
+
+    if (!backupGithubToken || !backupRepoOwner || !backupRepoName) {
+      return res.status(500).json({ 
+        error: 'Backup GitHub configuration not complete. Please set BACKUP_GITHUB_TOKEN, BACKUP_GITHUB_REPO_OWNER, and BACKUP_GITHUB_REPO_NAME in .env file' 
+      });
+    }
+
+    console.log(`Restoring session from: ${backupRepoOwner}/${backupRepoName}/${backupFilename}`);
+
+    // Fetch backup file from GitHub
+    const response = await fetch(`https://api.github.com/repos/${backupRepoOwner}/${backupRepoName}/contents/${backupFilename}`, {
+      headers: {
+        'Authorization': `token ${backupGithubToken}`,
+        'User-Agent': 'qookie'
+      }
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('GitHub API error (restore):', error);
+      throw new Error(`Failed to fetch backup: ${response.status} - ${response.statusText}`);
+    }
+
+    const fileData = await response.json();
+    const backupContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
+    
+    let backupData;
+    try {
+      backupData = JSON.parse(backupContent);
+    } catch (parseError) {
+      throw new Error('Invalid backup file format');
+    }
+
+    // Validate backup data structure
+    if (!backupData.sessionData || !backupData.timestamp) {
+      throw new Error('Invalid backup data structure');
+    }
+
+    const responseTime = Date.now() - startTime;
+
+    console.log(`Session restore completed in ${responseTime}ms`);
+
+    res.json({
+      success: true,
+      sessionData: backupData.sessionData,
+      backupInfo: {
+        timestamp: backupData.timestamp,
+        version: backupData.version,
+        metadata: backupData.metadata
+      },
+      responseTime,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Session restore error:', error);
+    res.status(500).json({ error: 'Session restore failed: ' + error.message });
+  }
+});
+
+// List available backups endpoint
+app.get('/api/github/list-backups', async (req, res) => {
+  try {
+    const backupGithubToken = process.env.BACKUP_GITHUB_TOKEN;
+    const backupRepoOwner = process.env.BACKUP_GITHUB_REPO_OWNER;
+    const backupRepoName = process.env.BACKUP_GITHUB_REPO_NAME;
+
+    if (!backupGithubToken || !backupRepoOwner || !backupRepoName) {
+      return res.status(500).json({ 
+        error: 'Backup GitHub configuration not complete' 
+      });
+    }
+
+    console.log(`Listing backups from: ${backupRepoOwner}/${backupRepoName}/backups`);
+
+    // List files in backups directory
+    const response = await fetch(`https://api.github.com/repos/${backupRepoOwner}/${backupRepoName}/contents/backups`, {
+      headers: {
+        'Authorization': `token ${backupGithubToken}`,
+        'User-Agent': 'qookie'
+      }
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        // No backups directory exists yet
+        return res.json({ backups: [] });
+      }
+      throw new Error(`Failed to list backups: ${response.status}`);
+    }
+
+    const files = await response.json();
+    const backups = files
+      .filter(file => file.name.startsWith('session-backup-') && file.name.endsWith('.json'))
+      .map(file => ({
+        filename: file.path,
+        name: file.name,
+        url: file.html_url,
+        size: file.size,
+        lastModified: file.name.match(/session-backup-(.+)\.json/)?.[1]?.replace(/-/g, ':') || 'unknown'
+      }))
+      .sort((a, b) => b.lastModified.localeCompare(a.lastModified)); // Most recent first
+
+    res.json({ backups });
+
+  } catch (error) {
+    console.error('List backups error:', error);
+    res.status(500).json({ error: 'Failed to list backups: ' + error.message });
   }
 });
 
