@@ -18,6 +18,10 @@ function App() {
   const [githubPushing, setGithubPushing] = useState(false);
   const [githubStatus, setGithubStatus] = useState(null); // 'success', 'error', or null
   const [collectingReferences, setCollectingReferences] = useState(false);
+  const [backupStatus, setBackupStatus] = useState(null); // 'backing-up', 'success', 'error', or null
+  const [restoreStatus, setRestoreStatus] = useState(null); // 'restoring', 'success', 'error', or null
+  const [availableBackups, setAvailableBackups] = useState([]);
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
 
   // Load CSV data and research history on mount
   useEffect(() => {
@@ -651,6 +655,133 @@ Return ONLY the JSON object above with your analysis results.`;
     }
   };
 
+  const backupSession = async () => {
+    setBackupStatus('backing-up');
+    setError(null);
+
+    try {
+      // Gather all session data from localStorage
+      const allCaseStudies = {};
+      
+      // Collect all individual case studies
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('case-study-')) {
+          const partnershipId = key.replace('case-study-', '');
+          allCaseStudies[partnershipId] = JSON.parse(localStorage.getItem(key));
+        }
+      }
+      
+      const sessionData = {
+        caseStudies: allCaseStudies,
+        researchHistory: JSON.parse(localStorage.getItem('researchHistory') || '[]'),
+        preferences: {
+          selectedModel: selectedModel,
+          // Add other preferences as needed
+        }
+      };
+
+      console.log('Backing up session data:', {
+        caseStudiesCount: Object.keys(sessionData.caseStudies).length,
+        historyCount: sessionData.researchHistory.length
+      });
+
+      const response = await fetch('http://localhost:3002/api/github/backup-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionData })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Session backup failed');
+      }
+
+      setBackupStatus('success');
+      setTimeout(() => setBackupStatus(null), 5000);
+      console.log('Session backup successful:', data.backup);
+
+    } catch (error) {
+      console.error('Session backup error:', error);
+      setError(`Failed to backup session: ${error.message}`);
+      setBackupStatus('error');
+      setTimeout(() => setBackupStatus(null), 5000);
+    }
+  };
+
+  const loadAvailableBackups = async () => {
+    try {
+      const response = await fetch('http://localhost:3002/api/github/list-backups');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to load backups');
+      }
+
+      setAvailableBackups(data.backups);
+      console.log('Available backups loaded:', data.backups.length);
+
+    } catch (error) {
+      console.error('Error loading backups:', error);
+      setError(`Failed to load backups: ${error.message}`);
+    }
+  };
+
+  const restoreSession = async (backupFilename) => {
+    setRestoreStatus('restoring');
+    setError(null);
+
+    try {
+      console.log('Restoring session from:', backupFilename);
+
+      const response = await fetch('http://localhost:3002/api/github/restore-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ backupFilename })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Session restore failed');
+      }
+
+      // Apply restored session data to localStorage
+      const { sessionData, backupInfo } = data;
+      
+      if (sessionData.caseStudies) {
+        // Restore individual case studies
+        Object.entries(sessionData.caseStudies).forEach(([partnershipId, caseStudy]) => {
+          localStorage.setItem(`case-study-${partnershipId}`, JSON.stringify(caseStudy));
+        });
+        
+        // Update the caseStudies state
+        setCaseStudies(sessionData.caseStudies);
+      }
+      
+      if (sessionData.researchHistory) {
+        localStorage.setItem('researchHistory', JSON.stringify(sessionData.researchHistory));
+        setResearchHistory(sessionData.researchHistory);
+      }
+      
+      if (sessionData.preferences && sessionData.preferences.selectedModel) {
+        setSelectedModel(sessionData.preferences.selectedModel);
+      }
+
+      setRestoreStatus('success');
+      setShowRestoreDialog(false);
+      setTimeout(() => setRestoreStatus(null), 5000);
+      console.log('Session restore successful:', backupInfo);
+
+    } catch (error) {
+      console.error('Session restore error:', error);
+      setError(`Failed to restore session: ${error.message}`);
+      setRestoreStatus('error');
+      setTimeout(() => setRestoreStatus(null), 5000);
+    }
+  };
+
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -674,7 +805,7 @@ Return ONLY the JSON object above with your analysis results.`;
                 fontWeight: '700',
                 color: '#1e293b'
               }}>
-                🔬 Quantum Partnership Research Tool
+                🍪 Qookie
               </h1>
               <p style={{ 
                 margin: '8px 0 0 0', 
@@ -685,36 +816,93 @@ Return ONLY the JSON object above with your analysis results.`;
               </p>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <label style={{ 
-                fontSize: '14px', 
-                fontWeight: '500', 
-                color: '#374151' 
-              }}>
-                Claude Model:
-              </label>
-              <select 
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                style={{
-                  padding: '8px 12px',
-                  fontSize: '14px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  backgroundColor: 'white',
-                  color: '#374151',
-                  cursor: 'pointer',
-                  minWidth: '260px'
-                }}
-              >
-                <option value="claude-opus-4-20250514">Claude 4 Opus (Most Capable)</option>
-                <option value="claude-sonnet-4-20250514">Claude 4 Sonnet (Latest & Recommended)</option>
-                <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
-                <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku (Fast & Smart)</option>
-                <option value="claude-3-opus-20240229">Claude 3 Opus</option>
-                <option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option>
-                <option value="claude-3-haiku-20240307">Claude 3 Haiku (Fastest)</option>
-              </select>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+              {/* Session Backup/Restore */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  onClick={backupSession}
+                  disabled={backupStatus === 'backing-up'}
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    backgroundColor: backupStatus === 'backing-up' ? '#f3f4f6' : 
+                                    backupStatus === 'success' ? '#dcfce7' :
+                                    backupStatus === 'error' ? '#fef2f2' : 'white',
+                    color: backupStatus === 'backing-up' ? '#6b7280' :
+                           backupStatus === 'success' ? '#166534' :
+                           backupStatus === 'error' ? '#991b1b' : '#374151',
+                    cursor: backupStatus === 'backing-up' ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {backupStatus === 'backing-up' ? '⏳ Backing up...' :
+                   backupStatus === 'success' ? '✅ Backed up' :
+                   backupStatus === 'error' ? '❌ Backup failed' : '💾 Backup Session'}
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowRestoreDialog(true);
+                    loadAvailableBackups();
+                  }}
+                  disabled={restoreStatus === 'restoring'}
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    backgroundColor: restoreStatus === 'restoring' ? '#f3f4f6' : 
+                                    restoreStatus === 'success' ? '#dcfce7' :
+                                    restoreStatus === 'error' ? '#fef2f2' : 'white',
+                    color: restoreStatus === 'restoring' ? '#6b7280' :
+                           restoreStatus === 'success' ? '#166534' :
+                           restoreStatus === 'error' ? '#991b1b' : '#374151',
+                    cursor: restoreStatus === 'restoring' ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {restoreStatus === 'restoring' ? '⏳ Restoring...' :
+                   restoreStatus === 'success' ? '✅ Restored' :
+                   restoreStatus === 'error' ? '❌ Restore failed' : '📥 Restore Session'}
+                </button>
+              </div>
+
+              {/* Model Selection */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <label style={{ 
+                  fontSize: '14px', 
+                  fontWeight: '500', 
+                  color: '#374151' 
+                }}>
+                  Claude Model:
+                </label>
+                <select 
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  style={{
+                    padding: '8px 12px',
+                    fontSize: '14px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    backgroundColor: 'white',
+                    color: '#374151',
+                    cursor: 'pointer',
+                    minWidth: '260px'
+                  }}
+                >
+                  <option value="claude-opus-4-20250514">Claude 4 Opus (Most Capable)</option>
+                  <option value="claude-sonnet-4-20250514">Claude 4 Sonnet (Latest & Recommended)</option>
+                  <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                  <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku (Fast & Smart)</option>
+                  <option value="claude-3-opus-20240229">Claude 3 Opus</option>
+                  <option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option>
+                  <option value="claude-3-haiku-20240307">Claude 3 Haiku (Fastest)</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -1680,6 +1868,191 @@ Return ONLY the JSON object above with your analysis results.`;
             animation: 'fadeIn 0.3s ease-out'
           }}>
             {githubStatus === 'success' ? '🚀 Successfully pushed to GitHub!' : '❌ Failed to push to GitHub'}
+          </div>
+        )}
+
+        {/* Backup/Restore Status Toasts */}
+        {backupStatus && (
+          <div style={{
+            position: 'fixed',
+            top: githubStatus ? '140px' : '20px',
+            right: '20px',
+            padding: '12px 20px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: '500',
+            zIndex: 1000,
+            backgroundColor: backupStatus === 'success' ? '#10b981' : 
+                           backupStatus === 'error' ? '#ef4444' : '#3b82f6',
+            color: 'white',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            animation: 'fadeIn 0.3s ease-out'
+          }}>
+            {backupStatus === 'backing-up' ? '⏳ Backing up session...' :
+             backupStatus === 'success' ? '💾 Session backed up to GitHub!' :
+             '❌ Failed to backup session'}
+          </div>
+        )}
+
+        {restoreStatus && (
+          <div style={{
+            position: 'fixed',
+            top: (githubStatus || backupStatus) ? '200px' : '20px',
+            right: '20px',
+            padding: '12px 20px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: '500',
+            zIndex: 1000,
+            backgroundColor: restoreStatus === 'success' ? '#10b981' : 
+                           restoreStatus === 'error' ? '#ef4444' : '#3b82f6',
+            color: 'white',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            animation: 'fadeIn 0.3s ease-out'
+          }}>
+            {restoreStatus === 'restoring' ? '⏳ Restoring session...' :
+             restoreStatus === 'success' ? '📥 Session restored from GitHub!' :
+             '❌ Failed to restore session'}
+          </div>
+        )}
+
+        {/* Restore Dialog */}
+        {showRestoreDialog && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '600px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '20px'
+              }}>
+                <h2 style={{
+                  margin: 0,
+                  fontSize: '24px',
+                  fontWeight: '600',
+                  color: '#1f2937'
+                }}>
+                  Restore Session
+                </h2>
+                <button
+                  onClick={() => setShowRestoreDialog(false)}
+                  style={{
+                    padding: '8px',
+                    border: 'none',
+                    background: 'none',
+                    fontSize: '24px',
+                    cursor: 'pointer',
+                    color: '#6b7280'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+
+              <p style={{
+                margin: '0 0 20px 0',
+                color: '#6b7280',
+                fontSize: '14px'
+              }}>
+                Select a backup to restore. This will replace your current session data.
+              </p>
+
+              {availableBackups.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px',
+                  color: '#6b7280'
+                }}>
+                  <p style={{ margin: 0 }}>No backups found.</p>
+                  <p style={{ margin: '8px 0 0 0', fontSize: '14px' }}>
+                    Create a backup first using the "Backup Session" button.
+                  </p>
+                </div>
+              ) : (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  {availableBackups.map((backup, index) => (
+                    <div key={index} style={{
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      padding: '16px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <div>
+                        <div style={{
+                          fontSize: '16px',
+                          fontWeight: '500',
+                          color: '#1f2937',
+                          marginBottom: '4px'
+                        }}>
+                          {new Date(backup.lastModified.replace(/-/g, ':')).toLocaleString()}
+                        </div>
+                        <div style={{
+                          fontSize: '14px',
+                          color: '#6b7280'
+                        }}>
+                          Size: {(backup.size / 1024).toFixed(1)} KB
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => restoreSession(backup.filename)}
+                        disabled={restoreStatus === 'restoring'}
+                        style={{
+                          padding: '8px 16px',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          border: 'none',
+                          borderRadius: '6px',
+                          backgroundColor: '#3b82f6',
+                          color: 'white',
+                          cursor: restoreStatus === 'restoring' ? 'not-allowed' : 'pointer',
+                          opacity: restoreStatus === 'restoring' ? 0.5 : 1
+                        }}
+                      >
+                        {restoreStatus === 'restoring' ? 'Restoring...' : 'Restore'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{
+                marginTop: '20px',
+                padding: '16px',
+                backgroundColor: '#fef3c7',
+                border: '1px solid #f59e0b',
+                borderRadius: '8px',
+                fontSize: '14px',
+                color: '#92400e'
+              }}>
+                <strong>Warning:</strong> Restoring will replace all current case studies, research history, and preferences with the backup data.
+              </div>
+            </div>
           </div>
         )}
       </div>

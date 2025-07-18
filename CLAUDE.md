@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture Overview
 
-This is a React-based quantum computing case study processor that generates structured case studies with AI assistance.
+This is Qookie - a React-based quantum computing case study processor that generates structured case studies with AI assistance.
 
 ### Key Components
 - **QuantumCaseStudyProcessor.jsx** - Main application component

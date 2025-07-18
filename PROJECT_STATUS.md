@@ -1,4 +1,4 @@
-# Quantum Case Study Tool - Project Status Summary
+# Qookie - Project Status Summary
 
 ## Overview
 This tool helps create content for openqase.com by researching quantum computing partnerships and generating structured case studies. It reads partnership data from a CSV file, searches for information using Claude API, and outputs markdown-formatted case studies.
