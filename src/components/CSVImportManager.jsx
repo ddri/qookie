@@ -29,7 +29,6 @@ const CSVImportManager = ({ onDataImport, sourceData, onExportData }) => {
           id: parseInt(row.id) || index + 1,
           company: row.quantum_company || '',
           partner: row.commercial_partner || '',
-          status: row.status || '',
           year: row.year || '',
           notes: row.notes || ''
         };
@@ -90,9 +89,9 @@ const CSVImportManager = ({ onDataImport, sourceData, onExportData }) => {
       return;
     }
 
-    const csvHeaders = 'id,quantum_company,commercial_partner,status,year,notes\n';
+    const csvHeaders = 'id,quantum_company,commercial_partner,year,notes\n';
     const csvRows = sourceData.map(row => 
-      `${row.id},"${row.company}","${row.partner}","${row.status || ''}","${row.year || ''}","${row.notes || ''}"`
+      `${row.id},"${row.company}","${row.partner}","${row.year || ''}","${row.notes || ''}"`
     ).join('\n');
     
     const csvContent = csvHeaders + csvRows;
@@ -184,7 +183,6 @@ const CSVImportManager = ({ onDataImport, sourceData, onExportData }) => {
                     <th className={`px-3 py-2 text-left ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>ID</th>
                     <th className={`px-3 py-2 text-left ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>Quantum Company</th>
                     <th className={`px-3 py-2 text-left ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>Commercial Partner</th>
-                    <th className={`px-3 py-2 text-left ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>Status</th>
                     <th className={`px-3 py-2 text-left ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>Year</th>
                   </tr>
                 </thead>
@@ -194,7 +192,6 @@ const CSVImportManager = ({ onDataImport, sourceData, onExportData }) => {
                       <td className={`px-3 py-2 ${darkMode ? 'text-gray-300' : 'text-gray-900'}`}>{row.id}</td>
                       <td className={`px-3 py-2 ${darkMode ? 'text-gray-300' : 'text-gray-900'}`}>{row.company}</td>
                       <td className={`px-3 py-2 ${darkMode ? 'text-gray-300' : 'text-gray-900'}`}>{row.partner}</td>
-                      <td className={`px-3 py-2 ${darkMode ? 'text-gray-300' : 'text-gray-900'}`}>{row.status || '-'}</td>
                       <td className={`px-3 py-2 ${darkMode ? 'text-gray-300' : 'text-gray-900'}`}>{row.year || '-'}</td>
                     </tr>
                   ))}
@@ -207,7 +204,7 @@ const CSVImportManager = ({ onDataImport, sourceData, onExportData }) => {
         {/* Instructions */}
         <div className={`text-sm p-3 rounded-lg ${darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-50 text-gray-600'}`}>
           <h4 className={`font-medium mb-1 ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>Expected CSV Format:</h4>
-          <code className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-700'}`}>id,quantum_company,commercial_partner,status,year,notes</code>
+          <code className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-700'}`}>id,quantum_company,commercial_partner,year,notes</code>
           <p className="mt-2">
             Upload a CSV file with partnership data or export the current data to CSV format.
             The tool will automatically parse and validate the data structure.

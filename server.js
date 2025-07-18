@@ -170,7 +170,7 @@ app.post('/api/research', async (req, res) => {
   const startTime = Date.now();
   
   try {
-    const { company, partner, year, status, notes, model } = req.body;
+    const { company, partner, year, notes, model } = req.body;
     
     if (!company || !partner) {
       return res.status(400).json({ error: 'Company and partner are required' });
@@ -207,7 +207,6 @@ Return this exact JSON structure:
 
 Additional context:
 - Year: ${year || 'Unknown'}
-- Status: ${status || 'Unknown'}
 - Notes: ${notes || 'None'}
 
 Focus on factual information and realistic quantum computing applications. Respond with ONLY the JSON object.`;
@@ -275,6 +274,121 @@ Focus on factual information and realistic quantum computing applications. Respo
   } catch (error) {
     console.error('Server error:', error);
     res.status(500).json({ error: 'Internal server error: ' + error.message });
+  }
+});
+
+// Analysis endpoint for case study analysis
+app.post('/api/analyze', async (req, res) => {
+  const startTime = Date.now();
+  
+  try {
+    const { company, partner, year, notes, caseStudy, model } = req.body;
+    
+    if (!company || !partner || !caseStudy) {
+      return res.status(400).json({ error: 'Company, partner, and case study are required' });
+    }
+
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: 'Anthropic API key not configured' });
+    }
+
+    const selectedModel = model || 'claude-3-5-sonnet-20241022';
+    console.log(`Starting analysis for ${company} + ${partner} using model: ${selectedModel}`);
+
+    // Build the analysis prompt
+    const prompt = `You are analyzing a quantum computing case study. Your task is to match the case study content against provided reference lists and return ONLY a JSON object with the analysis results.
+
+CASE STUDY TO ANALYZE:
+${JSON.stringify(caseStudy, null, 2)}
+
+${notes || ''}
+
+INSTRUCTIONS:
+- Read the case study content carefully
+- Identify relevant algorithms, industries, and personas
+- Return ONLY valid JSON in this exact format:
+
+{
+  "title": "Analysis Results",
+  "summary": "Analysis of quantum computing case study categorization",
+  "metadata": {
+    "algorithms": ["algorithm1", "algorithm2"],
+    "industries": ["industry1", "industry2"],
+    "personas": ["persona1", "persona2"],
+    "confidence_score": 0.85,
+    "analysis_notes": "Brief explanation of the analysis"
+  }
+}
+
+Focus on factual information and realistic categorization. Respond with ONLY the JSON object.`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: selectedModel,
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('Anthropic API error:', error);
+      return res.status(response.status).json({ error: `API call failed: ${response.status} ${response.statusText}` });
+    }
+
+    const data = await response.json();
+    const responseTime = Date.now() - startTime;
+    
+    console.log(`Analysis completed in ${responseTime}ms`);
+
+    // Parse JSON response with improved error handling
+    let analysisResult;
+    try {
+      const responseText = data.content[0].text.trim();
+      
+      // Try to extract JSON from response (in case there's extra text)
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        analysisResult = JSON.parse(jsonMatch[0]);
+      } else {
+        analysisResult = JSON.parse(responseText);
+      }
+    } catch (parseError) {
+      console.error('Failed to parse analysis response:', parseError);
+      analysisResult = {
+        title: "Analysis Results",
+        summary: "Failed to parse analysis response",
+        metadata: {
+          error: 'Failed to parse analysis response',
+          raw_response: data.content[0].text,
+          algorithms: [],
+          industries: [],
+          personas: [],
+          confidence_score: 0,
+          analysis_notes: `Parse error: ${parseError.message}`
+        }
+      };
+    }
+
+    res.json({ 
+      caseStudy: analysisResult,
+      metadata: {
+        responseTime,
+        timestamp: new Date().toISOString(),
+        tokenCount: data.usage?.total_tokens || 'unknown'
+      }
+    });
+
+  } catch (error) {
+    console.error('Analysis error:', error);
+    res.status(500).json({ error: 'Analysis failed: ' + error.message });
   }
 });
 

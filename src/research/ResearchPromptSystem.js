@@ -72,7 +72,6 @@ Your response must be structured as a valid JSON object with the following forma
     "company": "${partnership.company}",
     "partner": "${partnership.partner}",
     "year": "${partnership.year || 'TBD'}",
-    "status": "${partnership.status || 'TBD'}",
     "research_date": "${new Date().toISOString().split('T')[0]}",
     "word_count": "approximate_word_count"
   }
@@ -91,7 +90,6 @@ CRITICAL: Return ONLY valid JSON. Do not include any text before or after the JS
 Partnership Details:
 - Quantum Company: ${partnership.company}
 - Commercial Partner: ${partnership.partner}
-- Status: ${partnership.status || 'Unknown'}
 - Year: ${partnership.year || 'Unknown'}
 - Notes: ${partnership.notes || 'No additional notes'}
 

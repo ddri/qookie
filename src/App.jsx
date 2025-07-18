@@ -69,7 +69,6 @@ function App() {
         id: row.id !== undefined && row.id !== '' ? parseInt(row.id) : index + 1,
         company: row.quantum_company || '',
         partner: row.commercial_partner || '',
-        status: row.status || '',
         year: row.year || '',
         notes: row.notes || ''
       };
@@ -186,7 +185,6 @@ function App() {
 - **Quantum Company**: ${partnership.company}
 - **Commercial Partner**: ${partnership.partner}
 - **Year**: ${partnership.year || 'Unknown'}
-- **Status**: ${partnership.status || 'Unknown'}
 - **Generated**: ${formatDate(caseStudy._cachedAt || new Date().toISOString())}
 - **Cached**: ${caseStudy._cached ? 'Yes' : 'No'}
 
@@ -398,11 +396,16 @@ ${caseStudy.collectionNotes}
   const analyzeCaseStudy = async (partnership, caseStudy) => {
     if (!caseStudy) return;
     
+    
     setAnalyzing(true);
     setError(null);
 
     try {
       console.log('Analyzing case study with reference lists...', partnership);
+      console.log('Reference lists state:', referenceLists);
+      console.log('Algorithms count:', referenceLists.algorithms.length);
+      console.log('Industries count:', referenceLists.industries.length);
+      console.log('Personas count:', referenceLists.personas.length);
       
       const prompt = `You are analyzing a quantum computing case study. Your task is to match the case study content against provided reference lists and return ONLY a JSON object with the analysis results.
 
@@ -417,9 +420,9 @@ Results: ${caseStudy.results_and_business_impact || ''}
 Future: ${caseStudy.future_directions || ''}
 
 REFERENCE LISTS TO MATCH AGAINST:
-Algorithms: ${referenceLists.algorithms.join(', ')}
-Industries: ${referenceLists.industries.join(', ')}
-Personas: ${referenceLists.personas.join(', ')}
+Algorithms: ${referenceLists.algorithms?.join(', ') || 'No algorithms loaded'}
+Industries: ${referenceLists.industries?.join(', ') || 'No industries loaded'}
+Personas: ${referenceLists.personas?.join(', ') || 'No personas loaded'}
 
 INSTRUCTIONS:
 1. Read the case study content carefully
@@ -448,15 +451,15 @@ INSTRUCTIONS:
 
 Return ONLY the JSON object above with your analysis results.`;
 
-      const response = await fetch('http://localhost:3002/api/research', {
+      const response = await fetch('http://localhost:3002/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           company: partnership.company,
           partner: partnership.partner,
           year: partnership.year,
-          status: partnership.status,
           notes: prompt,
+          caseStudy: caseStudy,
           model: selectedModel
         })
       });
@@ -558,7 +561,6 @@ Return ONLY the JSON object above with your analysis results.`;
           company: partnership.company,
           partner: partnership.partner,
           year: partnership.year,
-          status: partnership.status,
           notes: partnership.notes,
           model: selectedModel
         })
@@ -727,13 +729,9 @@ Return ONLY the JSON object above with your analysis results.`;
                   </div>
                   <div style={{ 
                     fontSize: '11px', 
-                    color: '#64748b',
-                    display: 'flex',
-                    gap: '8px'
+                    color: '#64748b'
                   }}>
                     <span>{partnership.year || 'Unknown'}</span>
-                    <span>•</span>
-                    <span>{partnership.status || 'Unknown'}</span>
                   </div>
                 </div>
                 );
@@ -798,17 +796,6 @@ Return ONLY the JSON object above with your analysis results.`;
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>
                         {selectedPartnership.year || 'Unknown Year'}
-                      </div>
-                      <div style={{ 
-                        fontSize: '14px', 
-                        opacity: '0.8',
-                        padding: '2px 8px',
-                        backgroundColor: 'rgba(255,255,255,0.2)',
-                        borderRadius: '4px',
-                        display: 'inline-block',
-                        marginBottom: '4px'
-                      }}>
-                        {selectedPartnership.status || 'Unknown Status'}
                       </div>
                       <div style={{ 
                         fontSize: '12px', 
