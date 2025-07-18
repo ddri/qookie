@@ -14,7 +14,9 @@ function App() {
     industries: [],
     personas: []
   });
-  const [selectedModel, setSelectedModel] = useState('claude-3-5-sonnet-20241022');
+  const [selectedModel, setSelectedModel] = useState('claude-sonnet-4-20250514');
+  const [githubPushing, setGithubPushing] = useState(false);
+  const [githubStatus, setGithubStatus] = useState(null); // 'success', 'error', or null
   const [collectingReferences, setCollectingReferences] = useState(false);
 
   // Load CSV data and research history on mount
@@ -90,21 +92,38 @@ function App() {
       ]);
 
       const parseMarkdownList = (text) => {
-        // Extract items from markdown list (lines starting with - or *)
+        // Extract items from markdown list (lines starting with - or *) OR plain text lines
         return text
           .split('\n')
-          .filter(line => line.trim().match(/^[-*]\s+/))
+          .map(line => line.trim())
+          .filter(line => {
+            // Include lines that start with - or * (markdown lists)
+            if (line.match(/^[-*]\s+/)) return true;
+            // Include non-empty lines that don't start with # (not headers)
+            if (line.length > 0 && !line.startsWith('#')) return true;
+            return false;
+          })
           .map(line => line.replace(/^[-*]\s+/, '').trim())
           .filter(item => item.length > 0);
       };
 
-      setReferenceLists({
+      const parsedLists = {
         algorithms: parseMarkdownList(algorithmsText),
         industries: parseMarkdownList(industriesText),
         personas: parseMarkdownList(personasText)
-      });
-
-      console.log('Reference lists loaded successfully');
+      };
+      
+      // DEBUG: Log parsed reference lists in detail
+      console.log('🔍 DEBUG: Parsed reference lists:');
+      console.log('- Algorithms count:', parsedLists.algorithms.length);
+      console.log('- Algorithms sample:', parsedLists.algorithms.slice(0, 3));
+      console.log('- Industries count:', parsedLists.industries.length);
+      console.log('- Industries sample:', parsedLists.industries.slice(0, 3));
+      console.log('- Personas count:', parsedLists.personas.length);
+      console.log('- Personas sample:', parsedLists.personas.slice(0, 3));
+      
+      setReferenceLists(parsedLists);
+      console.log('✅ Reference lists loaded successfully');
     } catch (error) {
       console.error('Failed to load reference lists:', error);
     }
@@ -401,11 +420,15 @@ ${caseStudy.collectionNotes}
     setError(null);
 
     try {
-      console.log('Analyzing case study with reference lists...', partnership);
-      console.log('Reference lists state:', referenceLists);
-      console.log('Algorithms count:', referenceLists.algorithms.length);
-      console.log('Industries count:', referenceLists.industries.length);
-      console.log('Personas count:', referenceLists.personas.length);
+      console.log('🔍 DEBUG: Starting analysis for:', partnership.quantum_company, '+', partnership.commercial_partner);
+      console.log('🔍 DEBUG: Reference lists state at analysis time:');
+      console.log('- referenceLists object:', referenceLists);
+      console.log('- Algorithms array exists?', Array.isArray(referenceLists.algorithms));
+      console.log('- Algorithms count:', referenceLists.algorithms?.length || 0);
+      console.log('- Industries array exists?', Array.isArray(referenceLists.industries));
+      console.log('- Industries count:', referenceLists.industries?.length || 0);
+      console.log('- Personas array exists?', Array.isArray(referenceLists.personas));
+      console.log('- Personas count:', referenceLists.personas?.length || 0);
       
       const prompt = `You are analyzing a quantum computing case study. Your task is to match the case study content against provided reference lists and return ONLY a JSON object with the analysis results.
 
@@ -423,6 +446,11 @@ REFERENCE LISTS TO MATCH AGAINST:
 Algorithms: ${referenceLists.algorithms?.join(', ') || 'No algorithms loaded'}
 Industries: ${referenceLists.industries?.join(', ') || 'No industries loaded'}
 Personas: ${referenceLists.personas?.join(', ') || 'No personas loaded'}
+
+🔍 DEBUG INFO:
+- Algorithms available: ${referenceLists.algorithms?.length || 0} items
+- Industries available: ${referenceLists.industries?.length || 0} items
+- Personas available: ${referenceLists.personas?.length || 0} items
 
 INSTRUCTIONS:
 1. Read the case study content carefully
@@ -451,15 +479,29 @@ INSTRUCTIONS:
 
 Return ONLY the JSON object above with your analysis results.`;
 
+      // DEBUG: Log the complete prompt being sent
+      console.log('🔍 DEBUG: Analysis prompt being sent to API:');
+      console.log('- Prompt length:', prompt.length);
+      console.log('- Reference lists in prompt:');
+      console.log('  - Algorithms section includes:', prompt.includes('Algorithms:') ? 'YES' : 'NO');
+      console.log('  - Industries section includes:', prompt.includes('Industries:') ? 'YES' : 'NO');
+      console.log('  - Personas section includes:', prompt.includes('Personas:') ? 'YES' : 'NO');
+      if (referenceLists.algorithms?.length > 0) {
+        console.log('  - First algorithm in prompt:', referenceLists.algorithms[0]);
+      }
+      if (referenceLists.industries?.length > 0) {
+        console.log('  - First industry in prompt:', referenceLists.industries[0]);
+      }
+      if (referenceLists.personas?.length > 0) {
+        console.log('  - First persona in prompt:', referenceLists.personas[0]);
+      }
+
       const response = await fetch('http://localhost:3002/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          company: partnership.company,
-          partner: partnership.partner,
-          year: partnership.year,
-          notes: prompt,
           caseStudy: caseStudy,
+          analysisPrompt: prompt,
           model: selectedModel
         })
       });
@@ -475,31 +517,12 @@ Return ONLY the JSON object above with your analysis results.`;
       try {
         console.log('Raw API response:', data);
         
-        // The response should be structured as a case study with metadata
-        if (data.caseStudy && data.caseStudy.metadata) {
-          analysisResult = data.caseStudy.metadata;
-          console.log('Found metadata in response:', analysisResult);
+        // The analyze endpoint returns { analysis: {...}, metadata: {...} }
+        if (data.analysis) {
+          analysisResult = data.analysis;
+          console.log('Found analysis in response:', analysisResult);
         } else {
-          // Fallback: try to parse as raw text
-          let responseText = '';
-          if (data.caseStudy && data.caseStudy.raw_response) {
-            responseText = data.caseStudy.raw_response;
-          } else if (data.caseStudy && data.caseStudy.summary) {
-            responseText = data.caseStudy.summary;
-          } else {
-            responseText = JSON.stringify(data);
-          }
-          
-          console.log('Parsing response text:', responseText);
-          
-          // Try to extract JSON from response
-          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-          const jsonText = jsonMatch ? jsonMatch[0] : responseText;
-          
-          console.log('Extracted JSON text:', jsonText);
-          
-          const fullResult = JSON.parse(jsonText);
-          analysisResult = fullResult.metadata || fullResult;
+          throw new Error('No analysis field found in response');
         }
         
         console.log('Final analysis result:', analysisResult);
@@ -586,6 +609,48 @@ Return ONLY the JSON object above with your analysis results.`;
     }
   };
 
+  const pushToGitHub = async (partnership, caseStudy) => {
+    if (!caseStudy) return;
+    
+    setGithubPushing(true);
+    setGithubStatus(null);
+    setError(null);
+
+    try {
+      const filename = `${partnership.company.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${partnership.partner.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${partnership.year}`;
+      
+      console.log('Pushing to GitHub:', filename);
+
+      const response = await fetch('http://localhost:3002/api/github/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          partnership: partnership,
+          caseStudy: caseStudy,
+          filename: filename
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'GitHub push failed');
+      }
+
+      setGithubStatus('success');
+      setTimeout(() => setGithubStatus(null), 5000);
+      console.log('Successfully pushed to GitHub:', data.files);
+
+    } catch (error) {
+      console.error('Error pushing to GitHub:', error);
+      setError(`Failed to push to GitHub: ${error.message}`);
+      setGithubStatus('error');
+      setTimeout(() => setGithubStatus(null), 5000);
+    } finally {
+      setGithubPushing(false);
+    }
+  };
+
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -642,8 +707,8 @@ Return ONLY the JSON object above with your analysis results.`;
                   minWidth: '260px'
                 }}
               >
-                <option value="claude-4-opus">Claude 4 Opus (Most Capable)</option>
-                <option value="claude-4-sonnet">Claude 4 Sonnet (Latest)</option>
+                <option value="claude-opus-4-20250514">Claude 4 Opus (Most Capable)</option>
+                <option value="claude-sonnet-4-20250514">Claude 4 Sonnet (Latest & Recommended)</option>
                 <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
                 <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku (Fast & Smart)</option>
                 <option value="claude-3-opus-20240229">Claude 3 Opus</option>
@@ -805,12 +870,13 @@ Return ONLY the JSON object above with your analysis results.`;
                         borderRadius: '3px',
                         display: 'inline-block'
                       }}>
-                        {selectedModel.includes('claude-4-opus') ? '4 Opus' : 
-                         selectedModel.includes('claude-4-sonnet') ? '4 Sonnet' :
-                         selectedModel.includes('3-5-haiku') ? '3.5 Haiku' :
+                        {selectedModel.includes('opus-4') ? '4 Opus' :
+                         selectedModel.includes('sonnet-4') ? '4 Sonnet' :
                          selectedModel.includes('3-5-sonnet') ? '3.5 Sonnet' :
-                         selectedModel.includes('opus') ? '3 Opus' :
-                         selectedModel.includes('haiku') ? '3 Haiku' : '3 Sonnet'}
+                         selectedModel.includes('3-5-haiku') ? '3.5 Haiku' :
+                         selectedModel.includes('3-opus') ? '3 Opus' :
+                         selectedModel.includes('3-sonnet') ? '3 Sonnet' :
+                         selectedModel.includes('3-haiku') ? '3 Haiku' : '4 Sonnet'}
                       </div>
                     </div>
                   </div>
@@ -983,6 +1049,54 @@ Return ONLY the JSON object above with your analysis results.`;
                             }}
                           >
                             📄 Export Markdown
+                          </button>
+
+                          {/* Push to GitHub button */}
+                          <button
+                            onClick={() => pushToGitHub(selectedPartnership, caseStudy)}
+                            disabled={githubPushing}
+                            style={{
+                              padding: '8px 16px',
+                              backgroundColor: githubPushing ? '#6b7280' : 
+                                             githubStatus === 'success' ? '#10b981' :
+                                             githubStatus === 'error' ? '#ef4444' : '#3b82f6',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '6px',
+                              cursor: githubPushing ? 'not-allowed' : 'pointer',
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              transition: 'background-color 0.2s'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!githubPushing) {
+                                if (githubStatus === 'success') {
+                                  e.target.style.backgroundColor = '#059669';
+                                } else if (githubStatus === 'error') {
+                                  e.target.style.backgroundColor = '#dc2626';
+                                } else {
+                                  e.target.style.backgroundColor = '#2563eb';
+                                }
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!githubPushing) {
+                                if (githubStatus === 'success') {
+                                  e.target.style.backgroundColor = '#10b981';
+                                } else if (githubStatus === 'error') {
+                                  e.target.style.backgroundColor = '#ef4444';
+                                } else {
+                                  e.target.style.backgroundColor = '#3b82f6';
+                                }
+                              }
+                            }}
+                          >
+                            {githubPushing ? '⏳ Pushing...' : 
+                             githubStatus === 'success' ? '✅ Pushed to GitHub' :
+                             githubStatus === 'error' ? '❌ Push Failed' : '🚀 Push to GitHub'}
                           </button>
 
                           {/* Cache status indicator */}
@@ -1546,6 +1660,26 @@ Return ONLY the JSON object above with your analysis results.`;
             animation: 'fadeIn 0.3s ease-out'
           }}>
             {exportStatus === 'success' ? '✅ Markdown exported successfully!' : '❌ Failed to export markdown'}
+          </div>
+        )}
+
+        {/* GitHub Status Toast */}
+        {githubStatus && (
+          <div style={{
+            position: 'fixed',
+            top: exportStatus ? '80px' : '20px', // Stack below export toast if both are showing
+            right: '20px',
+            padding: '12px 20px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: '500',
+            zIndex: 1000,
+            backgroundColor: githubStatus === 'success' ? '#10b981' : '#ef4444',
+            color: 'white',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            animation: 'fadeIn 0.3s ease-out'
+          }}>
+            {githubStatus === 'success' ? '🚀 Successfully pushed to GitHub!' : '❌ Failed to push to GitHub'}
           </div>
         )}
       </div>

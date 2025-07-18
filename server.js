@@ -104,7 +104,7 @@ Find the relevant scientific papers and further reading based on this case study
   "collection_notes": "notes"
 }`;
 
-    const selectedModel = model || 'claude-3-5-sonnet-20241022';
+    const selectedModel = model || 'claude-sonnet-4-20250514';
     console.log(`Collecting references using model: ${selectedModel}`);
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -211,7 +211,7 @@ Additional context:
 
 Focus on factual information and realistic quantum computing applications. Respond with ONLY the JSON object.`;
 
-    const selectedModel = model || 'claude-3-5-sonnet-20241022';
+    const selectedModel = model || 'claude-sonnet-4-20250514';
     console.log(`Starting research for ${company} + ${partner} using model: ${selectedModel}`);
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -277,15 +277,15 @@ Focus on factual information and realistic quantum computing applications. Respo
   }
 });
 
-// Analysis endpoint for case study analysis
+// Analysis endpoint - dedicated to case study analysis only
 app.post('/api/analyze', async (req, res) => {
   const startTime = Date.now();
   
   try {
-    const { company, partner, year, notes, caseStudy, model } = req.body;
+    const { caseStudy, analysisPrompt, model } = req.body;
     
-    if (!company || !partner || !caseStudy) {
-      return res.status(400).json({ error: 'Company, partner, and case study are required' });
+    if (!caseStudy || !analysisPrompt) {
+      return res.status(400).json({ error: 'Case study and analysis prompt are required' });
     }
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -293,36 +293,10 @@ app.post('/api/analyze', async (req, res) => {
       return res.status(500).json({ error: 'Anthropic API key not configured' });
     }
 
-    const selectedModel = model || 'claude-3-5-sonnet-20241022';
-    console.log(`Starting analysis for ${company} + ${partner} using model: ${selectedModel}`);
+    const selectedModel = model || 'claude-sonnet-4-20250514';
+    console.log(`Starting case study analysis using model: ${selectedModel}`);
 
-    // Build the analysis prompt
-    const prompt = `You are analyzing a quantum computing case study. Your task is to match the case study content against provided reference lists and return ONLY a JSON object with the analysis results.
-
-CASE STUDY TO ANALYZE:
-${JSON.stringify(caseStudy, null, 2)}
-
-${notes || ''}
-
-INSTRUCTIONS:
-- Read the case study content carefully
-- Identify relevant algorithms, industries, and personas
-- Return ONLY valid JSON in this exact format:
-
-{
-  "title": "Analysis Results",
-  "summary": "Analysis of quantum computing case study categorization",
-  "metadata": {
-    "algorithms": ["algorithm1", "algorithm2"],
-    "industries": ["industry1", "industry2"],
-    "personas": ["persona1", "persona2"],
-    "confidence_score": 0.85,
-    "analysis_notes": "Brief explanation of the analysis"
-  }
-}
-
-Focus on factual information and realistic categorization. Respond with ONLY the JSON object.`;
-
+    // Use the complete analysis prompt from frontend (contains reference lists)
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -333,7 +307,7 @@ Focus on factual information and realistic categorization. Respond with ONLY the
       body: JSON.stringify({
         model: selectedModel,
         max_tokens: 2000,
-        messages: [{ role: 'user', content: prompt }]
+        messages: [{ role: 'user', content: analysisPrompt }]
       })
     });
 
@@ -348,37 +322,48 @@ Focus on factual information and realistic categorization. Respond with ONLY the
     
     console.log(`Analysis completed in ${responseTime}ms`);
 
-    // Parse JSON response with improved error handling
+    // Parse JSON response and extract analysis metadata
     let analysisResult;
     try {
       const responseText = data.content[0].text.trim();
       
-      // Try to extract JSON from response (in case there's extra text)
+      // Try to extract JSON from response
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        analysisResult = JSON.parse(jsonMatch[0]);
+        const fullResult = JSON.parse(jsonMatch[0]);
+        // Extract metadata from the structured response
+        if (fullResult.metadata) {
+          analysisResult = fullResult.metadata;
+        } else {
+          analysisResult = fullResult;
+        }
       } else {
         analysisResult = JSON.parse(responseText);
       }
+      
+      // Ensure required fields exist
+      if (!analysisResult.algorithms) analysisResult.algorithms = [];
+      if (!analysisResult.industries) analysisResult.industries = [];
+      if (!analysisResult.personas) analysisResult.personas = [];
+      if (!analysisResult.confidence_score) analysisResult.confidence_score = 0;
+      if (!analysisResult.analysis_notes) analysisResult.analysis_notes = '';
+      
     } catch (parseError) {
       console.error('Failed to parse analysis response:', parseError);
+      console.error('Response text was:', data.content[0].text);
       analysisResult = {
-        title: "Analysis Results",
-        summary: "Failed to parse analysis response",
-        metadata: {
-          error: 'Failed to parse analysis response',
-          raw_response: data.content[0].text,
-          algorithms: [],
-          industries: [],
-          personas: [],
-          confidence_score: 0,
-          analysis_notes: `Parse error: ${parseError.message}`
-        }
+        error: 'Failed to parse analysis response',
+        raw_response: data.content[0].text,
+        algorithms: [],
+        industries: [],
+        personas: [],
+        confidence_score: 0,
+        analysis_notes: `Parse error: ${parseError.message}`
       };
     }
 
     res.json({ 
-      caseStudy: analysisResult,
+      analysis: analysisResult,
       metadata: {
         responseTime,
         timestamp: new Date().toISOString(),
@@ -389,6 +374,158 @@ Focus on factual information and realistic categorization. Respond with ONLY the
   } catch (error) {
     console.error('Analysis error:', error);
     res.status(500).json({ error: 'Analysis failed: ' + error.message });
+  }
+});
+
+// GitHub backup endpoint
+app.post('/api/github/push', async (req, res) => {
+  const startTime = Date.now();
+  
+  try {
+    const { partnership, caseStudy, filename } = req.body;
+    
+    if (!partnership || !caseStudy || !filename) {
+      return res.status(400).json({ error: 'Partnership, case study, and filename are required' });
+    }
+
+    const githubToken = process.env.GITHUB_TOKEN;
+    const repoOwner = process.env.GITHUB_REPO_OWNER;
+    const repoName = process.env.GITHUB_REPO_NAME;
+
+    if (!githubToken || !repoOwner || !repoName) {
+      return res.status(500).json({ 
+        error: 'GitHub configuration not complete. Please set GITHUB_TOKEN, GITHUB_REPO_OWNER, and GITHUB_REPO_NAME in .env file' 
+      });
+    }
+
+    // Generate markdown content (same logic as frontend export)
+    const generateMarkdown = (caseStudy) => {
+      return `# ${caseStudy.title}
+
+## Summary
+${caseStudy.summary}
+
+## Introduction
+${caseStudy.introduction}
+
+## Challenge
+${caseStudy.challenge}
+
+## Solution
+${caseStudy.solution}
+
+## Implementation
+${caseStudy.implementation}
+
+## Results and Business Impact
+${caseStudy.results_and_business_impact}
+
+## Future Directions
+${caseStudy.future_directions}
+
+## Technical Details
+${caseStudy.technical_details}
+
+## Metadata
+- **Company**: ${caseStudy.metadata?.company}
+- **Partner**: ${caseStudy.metadata?.partner}
+- **Year**: ${caseStudy.metadata?.year}
+- **Algorithms**: ${caseStudy.algorithms?.join(', ')}
+- **Industries**: ${caseStudy.industries?.join(', ')}
+- **Personas**: ${caseStudy.personas?.join(', ')}
+
+## Scientific References
+${caseStudy.scientific_references?.map(ref => `- ${ref}`).join('\n') || 'No references available'}
+
+## Business Case Studies and Coverage
+${caseStudy.business_references?.map(ref => `- ${ref}`).join('\n') || 'No business references available'}
+
+${caseStudy.advancedMetadata ? `
+## Advanced Analysis
+- **Algorithms**: ${caseStudy.advancedMetadata.algorithms?.join(', ') || 'None specified'}
+- **Industries**: ${caseStudy.advancedMetadata.industries?.join(', ') || 'None specified'}
+- **Target Personas**: ${caseStudy.advancedMetadata.personas?.join(', ') || 'None specified'}
+- **Confidence Score**: ${caseStudy.advancedMetadata.confidence_score || '0.8'}
+- **Analysis Notes**: ${caseStudy.advancedMetadata.analysis_notes || ''}
+- **Analyzed**: ${caseStudy.advancedMetadata._analyzedAt ? new Date(caseStudy.advancedMetadata._analyzedAt).toLocaleString() : 'Not analyzed'}
+` : ''}
+
+---
+*Generated on ${new Date().toLocaleString()}*
+`;
+    };
+
+    const markdownContent = generateMarkdown(caseStudy);
+    const jsonContent = JSON.stringify(caseStudy, null, 2);
+    
+    // Create both markdown and JSON files
+    const baseFilename = filename.replace(/\.(md|json)$/, '');
+    const markdownFilename = `exports/${baseFilename}.md`;
+    const jsonFilename = `exports/${baseFilename}.json`;
+
+    console.log(`Pushing to GitHub: ${repoOwner}/${repoName}`);
+
+    // Push markdown file
+    const markdownResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${markdownFilename}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${githubToken}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'quantum-case-study-tool'
+      },
+      body: JSON.stringify({
+        message: `Add case study: ${partnership.company} + ${partnership.partner}`,
+        content: Buffer.from(markdownContent).toString('base64'),
+        branch: 'main'
+      })
+    });
+
+    if (!markdownResponse.ok) {
+      const error = await markdownResponse.text();
+      console.error('GitHub API error (markdown):', error);
+      throw new Error(`Failed to push markdown file: ${markdownResponse.status}`);
+    }
+
+    // Push JSON file
+    const jsonResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${jsonFilename}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${githubToken}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'quantum-case-study-tool'
+      },
+      body: JSON.stringify({
+        message: `Add case study data: ${partnership.company} + ${partnership.partner}`,
+        content: Buffer.from(jsonContent).toString('base64'),
+        branch: 'main'
+      })
+    });
+
+    if (!jsonResponse.ok) {
+      const error = await jsonResponse.text();
+      console.error('GitHub API error (JSON):', error);
+      throw new Error(`Failed to push JSON file: ${jsonResponse.status}`);
+    }
+
+    const markdownResult = await markdownResponse.json();
+    const jsonResult = await jsonResponse.json();
+    const responseTime = Date.now() - startTime;
+
+    console.log(`GitHub push completed in ${responseTime}ms`);
+
+    res.json({
+      success: true,
+      files: [
+        { type: 'markdown', url: markdownResult.content.html_url },
+        { type: 'json', url: jsonResult.content.html_url }
+      ],
+      responseTime,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('GitHub push error:', error);
+    res.status(500).json({ error: 'GitHub push failed: ' + error.message });
   }
 });
 

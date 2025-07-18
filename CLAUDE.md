@@ -23,9 +23,10 @@ This is a React-based quantum computing case study processor that generates stru
 
 ### Data Structure
 - Uses CSV files in `/public/data/` directory for quantum partnership data (copied from `/data/`)
-- Expects CSV with columns: `id`, `quantum_company`, `commercial_partner`, `status`, `year`, `notes`
+- Expects CSV with columns: `id`, `quantum_company`, `commercial_partner`, `year`, `notes`
 - Falls back to hardcoded data if CSV not available
 - Currently loads 22 quantum partnerships from CSV
+- Template and documentation available in `/data/CSV-TEMPLATE-README.md`
 
 ### Development Environment
 - Uses Vite for build tooling with React plugin
@@ -52,12 +53,27 @@ This is a React-based quantum computing case study processor that generates stru
 - All components styled with dark mode variants
 - Toggle button shows sun/moon icons for visual feedback
 
+### GitHub Integration
+- **Case Study Backup**: Automatic backup of case studies to GitHub repositories
+- **Dual Format Export**: Pushes both markdown and JSON files to `exports/` folder
+- **API Endpoint**: `/api/github/push` handles GitHub API integration
+- **Configuration**: Requires `GITHUB_TOKEN`, `GITHUB_REPO_OWNER`, and `GITHUB_REPO_NAME` in `.env`
+- **UI Integration**: "Push to GitHub" button with status feedback and toast notifications
+
 ### External Dependencies
 - React 18.2.0
 - Lucide React for icons
 - Vite for build tooling
 
 ## Important Instructions
-- NEVER add Claude attribution or co-author tags to git commits
-- Keep commit messages clean and professional without AI tool references
+
+### Git Commit Rules
+- **NEVER add Claude attribution or co-author tags to git commits**
+- **NEVER include "Generated with Claude Code" or similar AI tool references**
+- **NEVER add "Co-Authored-By: Claude" or any AI attribution**
+- Keep commit messages clean and professional
+- Write commits as if they were written by a human developer
+
+### Development Rules
 - User will start servers themselves - do not run server commands automatically
+- Only the user can run `npm run dev`, `node server.js`, or similar commands
