@@ -30,3 +30,6 @@ yarn-error.log*
 
 # Local data
 research-data-backup.json
+
+# Claude Code configuration
+CLAUDE.md
