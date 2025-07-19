@@ -1506,9 +1506,9 @@ Return ONLY the JSON object above with your analysis results.`;
                   <div style={{ 
                     marginTop: '20px', 
                     padding: '24px', 
-                    backgroundColor: '#f0f9ff', 
+                    backgroundColor: darkMode ? '#1e3a8a' : '#f0f9ff', 
                     borderRadius: '8px',
-                    border: '1px solid #bae6fd'
+                    border: darkMode ? '1px solid #3b82f6' : '1px solid #bae6fd'
                   }}>
                     <h4 style={{ 
                       fontSize: '18px', 
