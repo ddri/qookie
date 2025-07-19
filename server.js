@@ -733,7 +733,7 @@ app.get('/api/github/list-backups', async (req, res) => {
         name: file.name,
         url: file.html_url,
         size: file.size,
-        lastModified: file.name.match(/session-backup-(.+)\.json/)?.[1]?.replace(/-/g, ':') || 'unknown'
+        lastModified: file.name.match(/session-backup-(.+)\.json/)?.[1]?.replace(/(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z/, '$1-$2-$3T$4:$5:$6.$7Z') || 'unknown'
       }))
       .sort((a, b) => b.lastModified.localeCompare(a.lastModified)); // Most recent first
 

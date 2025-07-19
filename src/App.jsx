@@ -1056,11 +1056,11 @@ Return ONLY the JSON object above with your analysis results.`;
               </div>
             ) : (
               <div style={{ 
-                backgroundColor: 'white',
+                backgroundColor: darkMode ? '#1f2937' : 'white',
                 borderRadius: '12px',
                 padding: '0',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                border: '1px solid #e2e8f0',
+                border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0',
                 overflow: 'hidden'
               }}>
                 {/* Partnership Header */}
@@ -1218,10 +1218,10 @@ Return ONLY the JSON object above with your analysis results.`;
                       padding: '60px 40px'
                     }}>
                       <div style={{ fontSize: '24px', marginBottom: '16px' }}>🔬</div>
-                      <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600', color: '#1e293b' }}>
+                      <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#1e293b' }}>
                         Researching Partnership
                       </h3>
-                      <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
+                      <p style={{ margin: 0, color: darkMode ? '#9ca3af' : '#64748b', fontSize: '14px' }}>
                         Claude AI is analyzing the partnership and generating a comprehensive case study...
                       </p>
                     </div>
@@ -1230,16 +1230,16 @@ Return ONLY the JSON object above with your analysis results.`;
                   {/* Error Display */}
                   {error && (
                     <div style={{ 
-                      backgroundColor: '#fef2f2',
+                      backgroundColor: darkMode ? '#7f1d1d' : '#fef2f2',
                       borderRadius: '8px',
                       padding: '24px',
                       border: '1px solid #fecaca',
                       marginBottom: '24px'
                     }}>
-                      <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', fontWeight: '600', color: '#dc2626' }}>
+                      <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', fontWeight: '600', color: darkMode ? '#fca5a5' : '#dc2626' }}>
                         Generation Failed
                       </h3>
-                      <p style={{ margin: 0, color: '#7f1d1d', fontSize: '14px' }}>
+                      <p style={{ margin: 0, color: darkMode ? '#fca5a5' : '#7f1d1d', fontSize: '14px' }}>
                         {error}
                       </p>
                     </div>
@@ -1249,7 +1249,7 @@ Return ONLY the JSON object above with your analysis results.`;
                   {caseStudy && (
                     <>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
-                        <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: '#1e293b' }}>
+                        <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#1e293b' }}>
                           📄 Case Study
                         </h2>
                         
@@ -1334,12 +1334,12 @@ Return ONLY the JSON object above with your analysis results.`;
                               display: 'flex',
                               alignItems: 'center',
                               gap: '8px',
-                              backgroundColor: '#ecfdf5',
+                              backgroundColor: darkMode ? '#064e3b' : '#ecfdf5',
                               border: '1px solid #bbf7d0',
                               borderRadius: '6px',
                               padding: '6px 12px',
                               fontSize: '12px',
-                              color: '#065f46'
+                              color: darkMode ? '#6ee7b7' : '#065f46'
                             }}>
                               <span>💾</span>
                               <span style={{ fontWeight: '500' }}>
@@ -1350,16 +1350,16 @@ Return ONLY the JSON object above with your analysis results.`;
                         </div>
                       </div>
                 
-                      <h3 style={{ fontSize: '22px', fontWeight: '600', color: '#1e293b', marginBottom: '24px' }}>
+                      <h3 style={{ fontSize: '22px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#1e293b', marginBottom: '24px' }}>
                         {caseStudy.title}
                       </h3>
                 
                 {caseStudy.summary && (
                   <div style={{ marginBottom: '32px' }}>
-                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: '#374151', marginBottom: '12px' }}>
+                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
                       📋 Executive Summary
                     </h4>
-                    <p style={{ color: '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
+                    <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
                       {caseStudy.summary}
                     </p>
                   </div>
@@ -1367,10 +1367,10 @@ Return ONLY the JSON object above with your analysis results.`;
 
                 {caseStudy.introduction && (
                   <div style={{ marginBottom: '32px' }}>
-                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: '#374151', marginBottom: '12px' }}>
+                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
                       🚀 Introduction
                     </h4>
-                    <p style={{ color: '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
+                    <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
                       {caseStudy.introduction}
                     </p>
                   </div>
@@ -1378,10 +1378,10 @@ Return ONLY the JSON object above with your analysis results.`;
 
                 {caseStudy.challenge && (
                   <div style={{ marginBottom: '32px' }}>
-                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: '#374151', marginBottom: '12px' }}>
+                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
                       ⚡ Challenge
                     </h4>
-                    <p style={{ color: '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
+                    <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
                       {caseStudy.challenge}
                     </p>
                   </div>
@@ -1389,10 +1389,10 @@ Return ONLY the JSON object above with your analysis results.`;
 
                 {caseStudy.solution && (
                   <div style={{ marginBottom: '32px' }}>
-                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: '#374151', marginBottom: '12px' }}>
+                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
                       💡 Solution
                     </h4>
-                    <p style={{ color: '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
+                    <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
                       {caseStudy.solution}
                     </p>
                   </div>
@@ -1400,10 +1400,10 @@ Return ONLY the JSON object above with your analysis results.`;
 
                 {caseStudy.implementation && (
                   <div style={{ marginBottom: '32px' }}>
-                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: '#374151', marginBottom: '12px' }}>
+                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
                       ⚙️ Implementation
                     </h4>
-                    <p style={{ color: '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
+                    <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
                       {caseStudy.implementation}
                     </p>
                   </div>
@@ -1411,10 +1411,10 @@ Return ONLY the JSON object above with your analysis results.`;
 
                 {caseStudy.results_and_business_impact && (
                   <div style={{ marginBottom: '32px' }}>
-                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: '#374151', marginBottom: '12px' }}>
+                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
                       📊 Results & Business Impact
                     </h4>
-                    <p style={{ color: '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
+                    <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
                       {caseStudy.results_and_business_impact}
                     </p>
                   </div>
@@ -1422,10 +1422,10 @@ Return ONLY the JSON object above with your analysis results.`;
 
                 {caseStudy.future_directions && (
                   <div style={{ marginBottom: '32px' }}>
-                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: '#374151', marginBottom: '12px' }}>
+                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
                       🔮 Future Directions
                     </h4>
-                    <p style={{ color: '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
+                    <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
                       {caseStudy.future_directions}
                     </p>
                   </div>
@@ -1435,14 +1435,14 @@ Return ONLY the JSON object above with your analysis results.`;
                   <div style={{ 
                     marginTop: '40px', 
                     padding: '24px', 
-                    backgroundColor: '#f8fafc', 
+                    backgroundColor: darkMode ? '#374151' : '#f8fafc', 
                     borderRadius: '8px',
                     border: '1px solid #e2e8f0'
                   }}>
                     <h4 style={{ 
                       fontSize: '18px', 
                       fontWeight: '600',
-                      color: '#374151',
+                      color: darkMode ? '#d1d5db' : '#374151',
                       marginBottom: '16px',
                       display: 'flex',
                       alignItems: 'center',
@@ -1463,33 +1463,33 @@ Return ONLY the JSON object above with your analysis results.`;
                     
                     <div style={{ display: 'grid', gap: '12px' }}>
                       <div>
-                        <span style={{ fontWeight: '600', color: '#374151' }}>Algorithms: </span>
-                        <span style={{ color: '#1f2937' }}>
+                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Algorithms: </span>
+                        <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
                           {caseStudy.metadata.algorithms && caseStudy.metadata.algorithms.length > 0 
                             ? caseStudy.metadata.algorithms.join(', ') 
                             : 'None specified'}
                         </span>
                       </div>
                       <div>
-                        <span style={{ fontWeight: '600', color: '#374151' }}>Industries: </span>
-                        <span style={{ color: '#1f2937' }}>
+                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Industries: </span>
+                        <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
                           {caseStudy.metadata.industries && caseStudy.metadata.industries.length > 0 
                             ? caseStudy.metadata.industries.join(', ') 
                             : 'None specified'}
                         </span>
                       </div>
                       <div>
-                        <span style={{ fontWeight: '600', color: '#374151' }}>Target Personas: </span>
-                        <span style={{ color: '#1f2937' }}>
+                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Target Personas: </span>
+                        <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
                           {caseStudy.metadata.personas && caseStudy.metadata.personas.length > 0 
                             ? caseStudy.metadata.personas.join(', ') 
                             : 'None specified'}
                         </span>
                       </div>
                       <div>
-                        <span style={{ fontWeight: '600', color: '#374151' }}>Confidence Score: </span>
+                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Confidence Score: </span>
                         <span style={{ 
-                          color: '#1f2937',
+                          color: darkMode ? '#f3f4f6' : '#1f2937',
                           backgroundColor: '#dbeafe',
                           padding: '2px 8px',
                           borderRadius: '4px',
@@ -1513,7 +1513,7 @@ Return ONLY the JSON object above with your analysis results.`;
                     <h4 style={{ 
                       fontSize: '18px', 
                       fontWeight: '600',
-                      color: '#374151',
+                      color: darkMode ? '#d1d5db' : '#374151',
                       marginBottom: '16px',
                       display: 'flex',
                       alignItems: 'center',
@@ -1534,33 +1534,33 @@ Return ONLY the JSON object above with your analysis results.`;
                     
                     <div style={{ display: 'grid', gap: '12px' }}>
                       <div>
-                        <span style={{ fontWeight: '600', color: '#374151' }}>Algorithms: </span>
-                        <span style={{ color: '#1f2937' }}>
+                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Algorithms: </span>
+                        <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
                           {caseStudy.advancedMetadata.algorithms && caseStudy.advancedMetadata.algorithms.length > 0 
                             ? caseStudy.advancedMetadata.algorithms.join(', ') 
                             : 'None specified'}
                         </span>
                       </div>
                       <div>
-                        <span style={{ fontWeight: '600', color: '#374151' }}>Industries: </span>
-                        <span style={{ color: '#1f2937' }}>
+                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Industries: </span>
+                        <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
                           {caseStudy.advancedMetadata.industries && caseStudy.advancedMetadata.industries.length > 0 
                             ? caseStudy.advancedMetadata.industries.join(', ') 
                             : 'None specified'}
                         </span>
                       </div>
                       <div>
-                        <span style={{ fontWeight: '600', color: '#374151' }}>Target Personas: </span>
-                        <span style={{ color: '#1f2937' }}>
+                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Target Personas: </span>
+                        <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
                           {caseStudy.advancedMetadata.personas && caseStudy.advancedMetadata.personas.length > 0 
                             ? caseStudy.advancedMetadata.personas.join(', ') 
                             : 'None specified'}
                         </span>
                       </div>
                       <div>
-                        <span style={{ fontWeight: '600', color: '#374151' }}>Confidence Score: </span>
+                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Confidence Score: </span>
                         <span style={{ 
-                          color: '#1f2937',
+                          color: darkMode ? '#f3f4f6' : '#1f2937',
                           backgroundColor: '#dbeafe',
                           padding: '2px 8px',
                           borderRadius: '4px',
@@ -1571,15 +1571,15 @@ Return ONLY the JSON object above with your analysis results.`;
                       </div>
                       {caseStudy.advancedMetadata.analysis_notes && (
                         <div>
-                          <span style={{ fontWeight: '600', color: '#374151' }}>Analysis Notes: </span>
-                          <span style={{ color: '#1f2937', fontStyle: 'italic' }}>
+                          <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Analysis Notes: </span>
+                          <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937', fontStyle: 'italic' }}>
                             {caseStudy.advancedMetadata.analysis_notes}
                           </span>
                         </div>
                       )}
                       <div>
-                        <span style={{ fontWeight: '600', color: '#374151' }}>Analyzed: </span>
-                        <span style={{ color: '#1f2937', fontSize: '14px' }}>
+                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Analyzed: </span>
+                        <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937', fontSize: '14px' }}>
                           {new Date(caseStudy.advancedMetadata._analyzedAt).toLocaleString()}
                         </span>
                       </div>
@@ -1592,14 +1592,14 @@ Return ONLY the JSON object above with your analysis results.`;
                     <div style={{ 
                       marginTop: '20px', 
                       padding: '24px', 
-                      backgroundColor: '#fefce8', 
+                      backgroundColor: darkMode ? '#451a03' : '#fefce8', 
                       borderRadius: '8px',
                       border: '1px solid #fde047'
                     }}>
                       <h4 style={{ 
                         fontSize: '18px', 
                         fontWeight: '600',
-                        color: '#374151',
+                        color: darkMode ? '#d1d5db' : '#374151',
                         marginBottom: '16px',
                         display: 'flex',
                         alignItems: 'center',
@@ -1622,24 +1622,24 @@ Return ONLY the JSON object above with your analysis results.`;
                         {caseStudy.references.map((ref, index) => (
                           <div key={index} style={{ 
                             padding: '16px',
-                            backgroundColor: 'white',
+                            backgroundColor: darkMode ? '#374151' : 'white',
                             borderRadius: '6px',
                             border: '1px solid #fed7aa'
                           }}>
-                            <div style={{ fontWeight: '600', color: '#1f2937', marginBottom: '8px' }}>
+                            <div style={{ fontWeight: '600', color: darkMode ? '#f3f4f6' : '#1f2937', marginBottom: '8px' }}>
                               {ref.title}
                             </div>
-                            <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '8px' }}>
+                            <div style={{ fontSize: '14px', color: darkMode ? '#9ca3af' : '#6b7280', marginBottom: '8px' }}>
                               {ref.authors && ref.authors.join(', ')} ({ref.year})
                             </div>
-                            <div style={{ fontSize: '13px', color: '#374151', marginBottom: '8px', fontStyle: 'italic' }}>
+                            <div style={{ fontSize: '13px', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '8px', fontStyle: 'italic' }}>
                               {ref.journal}
                             </div>
                             {ref.relevance_note && (
                               <div style={{ 
                                 fontSize: '12px', 
-                                color: '#065f46',
-                                backgroundColor: '#ecfdf5',
+                                color: darkMode ? '#6ee7b7' : '#065f46',
+                                backgroundColor: darkMode ? '#064e3b' : '#ecfdf5',
                                 padding: '8px',
                                 borderRadius: '4px',
                                 marginBottom: '8px',
@@ -1682,14 +1682,14 @@ Return ONLY the JSON object above with your analysis results.`;
                     <div style={{ 
                       marginTop: '20px', 
                       padding: '24px', 
-                      backgroundColor: '#f0fdf4', 
+                      backgroundColor: darkMode ? '#064e3b' : '#f0fdf4', 
                       borderRadius: '8px',
                       border: '1px solid #bbf7d0'
                     }}>
                       <h4 style={{ 
                         fontSize: '18px', 
                         fontWeight: '600',
-                        color: '#374151',
+                        color: darkMode ? '#d1d5db' : '#374151',
                         marginBottom: '16px',
                         display: 'flex',
                         alignItems: 'center',
@@ -1712,18 +1712,18 @@ Return ONLY the JSON object above with your analysis results.`;
                         {caseStudy.furtherReading.map((item, index) => (
                           <div key={index} style={{ 
                             padding: '16px',
-                            backgroundColor: 'white',
+                            backgroundColor: darkMode ? '#374151' : 'white',
                             borderRadius: '6px',
                             border: '1px solid #bbf7d0'
                           }}>
-                            <div style={{ fontWeight: '600', color: '#1f2937', marginBottom: '8px' }}>
+                            <div style={{ fontWeight: '600', color: darkMode ? '#f3f4f6' : '#1f2937', marginBottom: '8px' }}>
                               {item.title}
                             </div>
-                            <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '8px' }}>
+                            <div style={{ fontSize: '14px', color: darkMode ? '#9ca3af' : '#6b7280', marginBottom: '8px' }}>
                               {item.source} • {item.date}
                             </div>
                             {item.description && (
-                              <div style={{ fontSize: '13px', color: '#374151', marginBottom: '8px' }}>
+                              <div style={{ fontSize: '13px', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '8px' }}>
                                 {item.description}
                               </div>
                             )}
@@ -1761,21 +1761,21 @@ Return ONLY the JSON object above with your analysis results.`;
                     <div style={{ 
                       marginTop: '20px', 
                       padding: '16px', 
-                      backgroundColor: '#f8fafc', 
+                      backgroundColor: darkMode ? '#374151' : '#f8fafc', 
                       borderRadius: '8px',
                       border: '1px solid #e2e8f0'
                     }}>
                       <h5 style={{ 
                         fontSize: '14px', 
                         fontWeight: '600',
-                        color: '#374151',
+                        color: darkMode ? '#d1d5db' : '#374151',
                         marginBottom: '8px'
                       }}>
                         📝 Collection Notes
                       </h5>
                       <p style={{ 
                         fontSize: '13px', 
-                        color: '#6b7280',
+                        color: darkMode ? '#9ca3af' : '#6b7280',
                         margin: 0,
                         fontStyle: 'italic'
                       }}>
@@ -1803,18 +1803,18 @@ Return ONLY the JSON object above with your analysis results.`;
         {/* Recently Researched Section */}
         {researchHistory.length > 0 && (
           <div style={{ 
-            backgroundColor: 'white',
+            backgroundColor: darkMode ? '#374151' : 'white',
             borderRadius: '12px',
             padding: '24px',
             boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            border: '1px solid #e2e8f0',
+            border: darkMode ? '1px solid #4b5563' : '1px solid #e2e8f0',
             marginTop: '30px'
           }}>
             <h2 style={{ 
               margin: '0 0 16px 0', 
               fontSize: '18px', 
               fontWeight: '600',
-              color: '#1e293b'
+              color: darkMode ? '#f8fafc' : '#1e293b'
             }}>
               🕒 Recently Researched
             </h2>
@@ -1837,32 +1837,32 @@ Return ONLY the JSON object above with your analysis results.`;
                   }}
                   style={{
                     padding: '12px 16px',
-                    border: '1px solid #e2e8f0',
+                    border: darkMode ? '1px solid #4b5563' : '1px solid #e2e8f0',
                     borderRadius: '6px',
                     cursor: 'pointer',
-                    backgroundColor: 'white',
+                    backgroundColor: darkMode ? '#374151' : 'white',
                     transition: 'all 0.2s ease'
                   }}
                   onMouseEnter={(e) => {
-                    e.target.style.borderColor = '#cbd5e1';
-                    e.target.style.backgroundColor = '#f8fafc';
+                    e.target.style.borderColor = darkMode ? '#6b7280' : '#cbd5e1';
+                    e.target.style.backgroundColor = darkMode ? '#4b5563' : '#f8fafc';
                   }}
                   onMouseLeave={(e) => {
-                    e.target.style.borderColor = '#e2e8f0';
-                    e.target.style.backgroundColor = 'white';
+                    e.target.style.borderColor = darkMode ? '#4b5563' : '#e2e8f0';
+                    e.target.style.backgroundColor = darkMode ? '#374151' : 'white';
                   }}
                 >
                   <div style={{ 
                     fontWeight: '600', 
                     fontSize: '14px',
-                    color: '#1e293b',
+                    color: darkMode ? '#f8fafc' : '#1e293b',
                     marginBottom: '4px'
                   }}>
                     {entry.partnership?.company} + {entry.partnership?.partner}
                   </div>
                   <div style={{ 
                     fontSize: '12px', 
-                    color: '#64748b'
+                    color: darkMode ? '#9ca3af' : '#64748b'
                   }}>
                     {new Date(entry.timestamp).toLocaleDateString()} at {new Date(entry.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                   </div>
@@ -1972,7 +1972,7 @@ Return ONLY the JSON object above with your analysis results.`;
             zIndex: 1000
           }}>
             <div style={{
-              backgroundColor: 'white',
+              backgroundColor: darkMode ? '#374151' : 'white',
               borderRadius: '12px',
               padding: '24px',
               maxWidth: '600px',
@@ -1991,7 +1991,7 @@ Return ONLY the JSON object above with your analysis results.`;
                   margin: 0,
                   fontSize: '24px',
                   fontWeight: '600',
-                  color: '#1f2937'
+                  color: darkMode ? '#f3f4f6' : '#1f2937'
                 }}>
                   Restore Session
                 </h2>
@@ -2003,7 +2003,7 @@ Return ONLY the JSON object above with your analysis results.`;
                     background: 'none',
                     fontSize: '24px',
                     cursor: 'pointer',
-                    color: '#6b7280'
+                    color: darkMode ? '#9ca3af' : '#6b7280'
                   }}
                 >
                   ×
@@ -2012,7 +2012,7 @@ Return ONLY the JSON object above with your analysis results.`;
 
               <p style={{
                 margin: '0 0 20px 0',
-                color: '#6b7280',
+                color: darkMode ? '#9ca3af' : '#6b7280',
                 fontSize: '14px'
               }}>
                 Select a backup to restore. This will replace your current session data.
@@ -2022,7 +2022,7 @@ Return ONLY the JSON object above with your analysis results.`;
                 <div style={{
                   textAlign: 'center',
                   padding: '40px',
-                  color: '#6b7280'
+                  color: darkMode ? '#9ca3af' : '#6b7280'
                 }}>
                   <p style={{ margin: 0 }}>No backups found.</p>
                   <p style={{ margin: '8px 0 0 0', fontSize: '14px' }}>
@@ -2048,14 +2048,14 @@ Return ONLY the JSON object above with your analysis results.`;
                         <div style={{
                           fontSize: '16px',
                           fontWeight: '500',
-                          color: '#1f2937',
+                          color: darkMode ? '#f3f4f6' : '#1f2937',
                           marginBottom: '4px'
                         }}>
-                          {new Date(backup.lastModified.replace(/-/g, ':')).toLocaleString()}
+                          {new Date(backup.lastModified).toLocaleString()}
                         </div>
                         <div style={{
                           fontSize: '14px',
-                          color: '#6b7280'
+                          color: darkMode ? '#9ca3af' : '#6b7280'
                         }}>
                           Size: {(backup.size / 1024).toFixed(1)} KB
                         </div>
