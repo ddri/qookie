@@ -22,13 +22,31 @@ function App() {
   const [restoreStatus, setRestoreStatus] = useState(null); // 'restoring', 'success', 'error', or null
   const [availableBackups, setAvailableBackups] = useState([]);
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
 
   // Load CSV data and research history on mount
   useEffect(() => {
     loadPartnerships();
     setResearchHistory(getResearchHistory());
     loadReferenceLists();
+    
+    // Load dark mode preference
+    const savedDarkMode = localStorage.getItem('qookie-dark-mode');
+    if (savedDarkMode) {
+      setDarkMode(JSON.parse(savedDarkMode));
+    }
   }, []);
+
+  // Save dark mode preference to localStorage
+  useEffect(() => {
+    localStorage.setItem('qookie-dark-mode', JSON.stringify(darkMode));
+    // Update document body background
+    document.body.style.backgroundColor = darkMode ? '#111827' : '#f8fafc';
+  }, [darkMode]);
+
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+  };
 
   // Load cached case studies when partnership is selected
   useEffect(() => {
@@ -783,15 +801,15 @@ Return ONLY the JSON object above with your analysis results.`;
   };
 
   return (
-    <div style={{ 
+    <div className={darkMode ? 'dark' : ''} style={{ 
       minHeight: '100vh', 
-      backgroundColor: '#f8fafc', 
+      backgroundColor: darkMode ? '#111827' : '#f8fafc', 
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' 
     }}>
       {/* Header */}
       <div style={{
-        backgroundColor: 'white',
-        borderBottom: '1px solid #e2e8f0',
+        backgroundColor: darkMode ? '#1f2937' : 'white',
+        borderBottom: darkMode ? '1px solid #374151' : '1px solid #e2e8f0',
         padding: '20px 0',
         marginBottom: '30px',
         boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
@@ -803,13 +821,13 @@ Return ONLY the JSON object above with your analysis results.`;
                 margin: 0, 
                 fontSize: '28px', 
                 fontWeight: '700',
-                color: '#1e293b'
+                color: darkMode ? '#f8fafc' : '#1e293b'
               }}>
                 🍪 Qookie
               </h1>
               <p style={{ 
                 margin: '8px 0 0 0', 
-                color: '#64748b', 
+                color: darkMode ? '#9ca3af' : '#64748b', 
                 fontSize: '16px' 
               }}>
                 Generate AI-powered case studies from quantum computing partnerships
@@ -826,14 +844,14 @@ Return ONLY the JSON object above with your analysis results.`;
                     padding: '8px 16px',
                     fontSize: '14px',
                     fontWeight: '500',
-                    border: '1px solid #d1d5db',
+                    border: darkMode ? '1px solid #4b5563' : '1px solid #d1d5db',
                     borderRadius: '6px',
-                    backgroundColor: backupStatus === 'backing-up' ? '#f3f4f6' : 
+                    backgroundColor: backupStatus === 'backing-up' ? (darkMode ? '#374151' : '#f3f4f6') : 
                                     backupStatus === 'success' ? '#dcfce7' :
-                                    backupStatus === 'error' ? '#fef2f2' : 'white',
+                                    backupStatus === 'error' ? '#fef2f2' : (darkMode ? '#4b5563' : 'white'),
                     color: backupStatus === 'backing-up' ? '#6b7280' :
                            backupStatus === 'success' ? '#166534' :
-                           backupStatus === 'error' ? '#991b1b' : '#374151',
+                           backupStatus === 'error' ? '#991b1b' : (darkMode ? '#f9fafb' : '#374151'),
                     cursor: backupStatus === 'backing-up' ? 'not-allowed' : 'pointer',
                     transition: 'all 0.2s'
                   }}
@@ -853,14 +871,14 @@ Return ONLY the JSON object above with your analysis results.`;
                     padding: '8px 16px',
                     fontSize: '14px',
                     fontWeight: '500',
-                    border: '1px solid #d1d5db',
+                    border: darkMode ? '1px solid #4b5563' : '1px solid #d1d5db',
                     borderRadius: '6px',
-                    backgroundColor: restoreStatus === 'restoring' ? '#f3f4f6' : 
+                    backgroundColor: restoreStatus === 'restoring' ? (darkMode ? '#374151' : '#f3f4f6') : 
                                     restoreStatus === 'success' ? '#dcfce7' :
-                                    restoreStatus === 'error' ? '#fef2f2' : 'white',
+                                    restoreStatus === 'error' ? '#fef2f2' : (darkMode ? '#4b5563' : 'white'),
                     color: restoreStatus === 'restoring' ? '#6b7280' :
                            restoreStatus === 'success' ? '#166534' :
-                           restoreStatus === 'error' ? '#991b1b' : '#374151',
+                           restoreStatus === 'error' ? '#991b1b' : (darkMode ? '#f9fafb' : '#374151'),
                     cursor: restoreStatus === 'restoring' ? 'not-allowed' : 'pointer',
                     transition: 'all 0.2s'
                   }}
@@ -876,7 +894,7 @@ Return ONLY the JSON object above with your analysis results.`;
                 <label style={{ 
                   fontSize: '14px', 
                   fontWeight: '500', 
-                  color: '#374151' 
+                  color: darkMode ? '#d1d5db' : '#374151' 
                 }}>
                   Claude Model:
                 </label>
@@ -886,10 +904,10 @@ Return ONLY the JSON object above with your analysis results.`;
                   style={{
                     padding: '8px 12px',
                     fontSize: '14px',
-                    border: '1px solid #d1d5db',
+                    border: darkMode ? '1px solid #4b5563' : '1px solid #d1d5db',
                     borderRadius: '6px',
-                    backgroundColor: 'white',
-                    color: '#374151',
+                    backgroundColor: darkMode ? '#374151' : 'white',
+                    color: darkMode ? '#f9fafb' : '#374151',
                     cursor: 'pointer',
                     minWidth: '260px'
                   }}
@@ -903,6 +921,29 @@ Return ONLY the JSON object above with your analysis results.`;
                   <option value="claude-3-haiku-20240307">Claude 3 Haiku (Fastest)</option>
                 </select>
               </div>
+
+              {/* Dark Mode Toggle */}
+              <button
+                onClick={toggleDarkMode}
+                style={{
+                  padding: '8px',
+                  fontSize: '18px',
+                  border: darkMode ? '1px solid #4b5563' : '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  backgroundColor: darkMode ? '#374151' : '#f9fafb',
+                  color: darkMode ? '#fbbf24' : '#6b7280',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  width: '40px',
+                  height: '40px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              >
+                {darkMode ? '☀️' : '🌙'}
+              </button>
             </div>
           </div>
         </div>
@@ -914,11 +955,11 @@ Return ONLY the JSON object above with your analysis results.`;
           
           {/* Left Column - Partnership List */}
           <div style={{ 
-            backgroundColor: 'white',
+            backgroundColor: darkMode ? '#1f2937' : 'white',
             borderRadius: '12px',
             padding: '24px',
             boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            border: '1px solid #e2e8f0',
+            border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0',
             position: 'sticky',
             top: '30px'
           }}>
@@ -926,7 +967,7 @@ Return ONLY the JSON object above with your analysis results.`;
               margin: '0 0 20px 0', 
               fontSize: '20px', 
               fontWeight: '600',
-              color: '#1e293b'
+              color: darkMode ? '#f8fafc' : '#1e293b'
             }}>
               Partnerships ({partnerships.length})
             </h2>
@@ -937,7 +978,7 @@ Return ONLY the JSON object above with your analysis results.`;
               maxHeight: '600px',
               overflowY: 'auto'
             }}>
-              {partnerships.slice(0, 20).map(partnership => {
+              {partnerships.map(partnership => {
                 const hasCachedCaseStudy = getCachedCaseStudy(partnership.id) !== null;
                 
                 return (
@@ -948,19 +989,19 @@ Return ONLY the JSON object above with your analysis results.`;
                     padding: '12px 16px',
                     border: selectedPartnership && selectedPartnership.id === partnership.id 
                       ? '2px solid #3b82f6' 
-                      : '1px solid #e2e8f0',
+                      : darkMode ? '1px solid #4b5563' : '1px solid #e2e8f0',
                     borderRadius: '6px',
                     cursor: 'pointer',
                     backgroundColor: selectedPartnership && selectedPartnership.id === partnership.id 
-                      ? '#eff6ff' 
-                      : 'white',
+                      ? darkMode ? '#1e3a8a' : '#eff6ff'
+                      : darkMode ? '#374151' : 'white',
                     transition: 'all 0.2s ease'
                   }}
                 >
                   <div style={{ 
                     fontWeight: '600', 
                     fontSize: '14px',
-                    color: '#1e293b',
+                    color: darkMode ? '#f8fafc' : '#1e293b',
                     marginBottom: '4px',
                     display: 'flex',
                     alignItems: 'center',
@@ -982,7 +1023,7 @@ Return ONLY the JSON object above with your analysis results.`;
                   </div>
                   <div style={{ 
                     fontSize: '11px', 
-                    color: '#64748b'
+                    color: darkMode ? '#9ca3af' : '#64748b'
                   }}>
                     <span>{partnership.year || 'Unknown'}</span>
                   </div>
@@ -997,13 +1038,13 @@ Return ONLY the JSON object above with your analysis results.`;
           <div>
             {!selectedPartnership ? (
               <div style={{
-                backgroundColor: 'white',
+                backgroundColor: darkMode ? '#1f2937' : 'white',
                 borderRadius: '12px',
                 padding: '60px 40px',
                 textAlign: 'center',
-                color: '#64748b',
+                color: darkMode ? '#9ca3af' : '#64748b',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                border: '1px solid #e2e8f0'
+                border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0'
               }}>
                 <div style={{ fontSize: '48px', marginBottom: '16px' }}>👈</div>
                 <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600' }}>
