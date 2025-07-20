@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useCaseStudyStore } from './stores';
+import { useCaseStudyStore, useMetadataStore } from './stores';
 
 function App() {
   const [partnerships, setPartnerships] = useState([]);
@@ -14,14 +14,26 @@ function App() {
     error: caseStudyError,
     clearError: clearCaseStudyError
   } = useCaseStudyStore();
+
+  const {
+    getBasicMetadata,
+    getAdvancedMetadata,
+    setBasicMetadata,
+    analyzeMetadata,
+    analyzing: metadataAnalyzing,
+    error: metadataError,
+    clearError: clearMetadataError
+  } = useMetadataStore();
   
   // Derived state
   const caseStudy = selectedPartnership ? getCaseStudy(selectedPartnership.id) : null;
+  const basicMetadata = selectedPartnership ? getBasicMetadata(selectedPartnership.id) : null;
+  const advancedMetadata = selectedPartnership ? getAdvancedMetadata(selectedPartnership.id) : null;
   
   const [error, setError] = useState(null);
   const [researchHistory, setResearchHistory] = useState([]);
   const [exportStatus, setExportStatus] = useState(null); // 'success', 'error', or null
-  const [analyzing, setAnalyzing] = useState(false);
+  // Removed: const [analyzing, setAnalyzing] = useState(false); - now using metadataAnalyzing from store
   const [referenceLists, setReferenceLists] = useState({
     algorithms: [],
     industries: [],
@@ -474,159 +486,28 @@ ${caseStudy.collectionNotes}
     }
   };
 
-  const analyzeCaseStudy = async (partnership, caseStudy) => {
+  // Wrapper function for metadata analysis using the store
+  const handleAnalyzeCaseStudy = async (partnership, caseStudy) => {
     if (!caseStudy) return;
     
-    // Defensive programming: check if partnership exists
-    if (!partnership) {
-      console.error('Invalid partnership data for analysis:', partnership);
-      setError('Invalid partnership data. Cannot analyze case study.');
-      return;
-    }
-    
-    setAnalyzing(true);
-    setError(null);
-
     try {
-      console.log('🔍 DEBUG: Starting analysis for:', partnership.company || partnership.quantum_company, '+', partnership.partner || partnership.commercial_partner);
-      console.log('🔍 DEBUG: Reference lists state at analysis time:');
-      console.log('- referenceLists object:', referenceLists);
-      console.log('- Algorithms array exists?', Array.isArray(referenceLists.algorithms));
-      console.log('- Algorithms count:', referenceLists.algorithms?.length || 0);
-      console.log('- Industries array exists?', Array.isArray(referenceLists.industries));
-      console.log('- Industries count:', referenceLists.industries?.length || 0);
-      console.log('- Personas array exists?', Array.isArray(referenceLists.personas));
-      console.log('- Personas count:', referenceLists.personas?.length || 0);
+      clearMetadataError(); // Clear any previous errors
       
-      const prompt = `You are analyzing a quantum computing case study. Your task is to match the case study content against provided reference lists and return ONLY a JSON object with the analysis results.
-
-CASE STUDY TO ANALYZE:
-Title: ${caseStudy.title}
-Summary: ${caseStudy.summary || ''}
-Introduction: ${caseStudy.introduction || ''}
-Challenge: ${caseStudy.challenge || ''}
-Solution: ${caseStudy.solution || ''}
-Implementation: ${caseStudy.implementation || ''}
-Results: ${caseStudy.results_and_business_impact || ''}
-Future: ${caseStudy.future_directions || ''}
-
-REFERENCE LISTS TO MATCH AGAINST:
-Algorithms: ${referenceLists.algorithms?.join(', ') || 'No algorithms loaded'}
-Industries: ${referenceLists.industries?.join(', ') || 'No industries loaded'}
-Personas: ${referenceLists.personas?.join(', ') || 'No personas loaded'}
-
-🔍 DEBUG INFO:
-- Algorithms available: ${referenceLists.algorithms?.length || 0} items
-- Industries available: ${referenceLists.industries?.length || 0} items
-- Personas available: ${referenceLists.personas?.length || 0} items
-
-INSTRUCTIONS:
-1. Read the case study content carefully
-2. Identify which algorithms, industries, and personas from the reference lists are most relevant
-3. Only include items that actually exist in the reference lists
-4. Be selective - only include highly relevant matches
-5. Return ONLY valid JSON in this exact format (no other text):
-
-{
-  "title": "Analysis Results",
-  "summary": "Analysis of quantum computing case study categorization",
-  "introduction": "Based on the case study content, here are the matched categories:",
-  "challenge": "Matching case study content to reference lists",
-  "solution": "Selected most relevant items from each category",
-  "implementation": "Analyzed content and matched to reference lists",
-  "results_and_business_impact": "Found relevant matches in algorithms, industries, and personas",
-  "future_directions": "Continue refining categorization accuracy",
-  "metadata": {
-    "algorithms": ["algorithm1", "algorithm2"],
-    "industries": ["industry1", "industry2"],
-    "personas": ["persona1", "persona2"],
-    "confidence_score": 0.85,
-    "analysis_notes": "Brief explanation of the analysis"
-  }
-}
-
-Return ONLY the JSON object above with your analysis results.`;
-
-      // DEBUG: Log the complete prompt being sent
-      console.log('🔍 DEBUG: Analysis prompt being sent to API:');
-      console.log('- Prompt length:', prompt.length);
-      console.log('- Reference lists in prompt:');
-      console.log('  - Algorithms section includes:', prompt.includes('Algorithms:') ? 'YES' : 'NO');
-      console.log('  - Industries section includes:', prompt.includes('Industries:') ? 'YES' : 'NO');
-      console.log('  - Personas section includes:', prompt.includes('Personas:') ? 'YES' : 'NO');
-      if (referenceLists.algorithms?.length > 0) {
-        console.log('  - First algorithm in prompt:', referenceLists.algorithms[0]);
-      }
-      if (referenceLists.industries?.length > 0) {
-        console.log('  - First industry in prompt:', referenceLists.industries[0]);
-      }
-      if (referenceLists.personas?.length > 0) {
-        console.log('  - First persona in prompt:', referenceLists.personas[0]);
-      }
-
-      const response = await fetch('http://localhost:3002/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          caseStudy: caseStudy,
-          analysisPrompt: prompt,
-          model: selectedModel
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Analysis request failed');
-      }
-
-      // Parse the analysis results
-      let analysisResult;
-      try {
-        console.log('Raw API response:', data);
-        
-        // The analyze endpoint returns { analysis: {...}, metadata: {...} }
-        if (data.analysis) {
-          analysisResult = data.analysis;
-          console.log('Found analysis in response:', analysisResult);
-        } else {
-          throw new Error('No analysis field found in response');
-        }
-        
-        console.log('Final analysis result:', analysisResult);
-      } catch (parseError) {
-        console.error('Parse error details:', parseError);
-        console.error('Response data structure:', data);
-        throw new Error(`Failed to parse analysis results: ${parseError.message}`);
-      }
-
-      // Add advanced metadata alongside original metadata
-      const enhancedCaseStudy = {
-        ...caseStudy,
-        advancedMetadata: {
-          algorithms: analysisResult.algorithms || [],
-          industries: analysisResult.industries || [],
-          personas: analysisResult.personas || [],
-          confidence_score: analysisResult.confidence_score || 0.8,
-          analysis_notes: analysisResult.analysis_notes || '',
-          _analyzed: true,
-          _analyzedAt: new Date().toISOString()
-        }
-      };
-
-      // Save enhanced case study to cache and store
-      saveCaseStudyToCache(partnership.id, enhancedCaseStudy);
-      useCaseStudyStore.getState().setCaseStudy(partnership.id, enhancedCaseStudy);
-
-      console.log('Case study analysis completed successfully');
-
+      // Use the metadata store to perform analysis
+      const result = await analyzeMetadata(partnership, caseStudy, referenceLists, selectedModel);
+      
+      console.log('✅ Metadata analysis completed successfully')
+      return result
+      
     } catch (error) {
-      console.error('Error analyzing case study:', error);
+      console.error('❌ Error analyzing case study metadata:', error);
       setError(`Failed to analyze case study: ${error.message}`);
-    } finally {
-      setAnalyzing(false);
+      throw error
     }
   };
+
+  // Keep old function name for backward compatibility during migration
+  const analyzeCaseStudy = handleAnalyzeCaseStudy;
 
   // Wrapper function for the store's generateCaseStudy
   const handleGenerateCaseStudy = async (partnership, forceRegenerate = false) => {
@@ -742,7 +623,7 @@ Return ONLY the JSON object above with your analysis results.`;
     setBatchStep(0);
     setBatchError(null);
     clearCaseStudyError();
-    setAnalyzing(false);
+    clearMetadataError();
     setCollectingReferences(false);
     console.log('🛑 Batch process stopped by user');
   };
@@ -1586,21 +1467,21 @@ Return ONLY the JSON object above with your analysis results.`;
                 color: darkMode ? '#9ca3af' : '#64748b',
                 padding: '20px',
                 textAlign: 'center',
-                backgroundColor: caseStudy?.metadata ? (darkMode ? '#1e3a8a' : '#f0f9ff') : (darkMode ? '#374151' : '#f8fafc'),
+                backgroundColor: basicMetadata ? (darkMode ? '#1e3a8a' : '#f0f9ff') : (darkMode ? '#374151' : '#f8fafc'),
                 borderRadius: '8px',
-                border: caseStudy?.metadata ? `1px solid #3b82f6` : `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`,
+                border: basicMetadata ? `1px solid #3b82f6` : `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`,
                 minHeight: '60px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                {caseStudy?.metadata ? (
+                {basicMetadata ? (
                   <div style={{ textAlign: 'left', width: '100%' }}>
                     <div style={{ display: 'grid', gap: '8px', fontSize: '14px' }}>
-                      <div><strong>Algorithms:</strong> {caseStudy.metadata.algorithms?.join(', ') || 'None'}</div>
-                      <div><strong>Industries:</strong> {caseStudy.metadata.industries?.join(', ') || 'None'}</div>
-                      <div><strong>Personas:</strong> {caseStudy.metadata.personas?.join(', ') || 'None'}</div>
-                      <div><strong>Confidence:</strong> {caseStudy.metadata.confidence_score || 'N/A'}</div>
+                      <div><strong>Algorithms:</strong> {basicMetadata.algorithms?.join(', ') || 'None'}</div>
+                      <div><strong>Industries:</strong> {basicMetadata.industries?.join(', ') || 'None'}</div>
+                      <div><strong>Personas:</strong> {basicMetadata.personas?.join(', ') || 'None'}</div>
+                      <div><strong>Confidence:</strong> {basicMetadata.confidence_score || 'N/A'}</div>
                     </div>
                   </div>
                 ) : caseStudy ? (
@@ -1617,26 +1498,26 @@ Return ONLY the JSON object above with your analysis results.`;
 
             {/* Advanced Metadata Container */}
             <div 
-              onClick={() => !batchMode && caseStudy && !caseStudy.advancedMetadata && !analyzing ? analyzeCaseStudy(selectedPartnership, caseStudy) : null}
+              onClick={() => !batchMode && caseStudy && !advancedMetadata && !metadataAnalyzing ? handleAnalyzeCaseStudy(selectedPartnership, caseStudy) : null}
               style={{ 
                 backgroundColor: darkMode ? '#1f2937' : 'white',
                 borderRadius: '12px',
                 padding: '24px',
                 boxShadow: batchMode && batchStep === 2 ? '0 0 0 2px #3b82f6' : '0 1px 3px rgba(0,0,0,0.1)',
                 border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0',
-                cursor: !batchMode && caseStudy && !caseStudy.advancedMetadata && !analyzing ? 'pointer' : 'default',
+                cursor: !batchMode && caseStudy && !advancedMetadata && !metadataAnalyzing ? 'pointer' : 'default',
                 transition: 'all 0.2s ease',
                 opacity: !caseStudy ? 0.6 : 1
               }}
               onMouseEnter={(e) => {
-                if (!batchMode && caseStudy && !caseStudy.advancedMetadata && !analyzing) {
+                if (!batchMode && caseStudy && !advancedMetadata && !metadataAnalyzing) {
                   e.target.style.backgroundColor = darkMode ? '#374151' : '#f8fafc';
                   e.target.style.transform = 'translateY(-2px)';
                   e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
                 }
               }}
               onMouseLeave={(e) => {
-                if (!batchMode && caseStudy && !caseStudy.advancedMetadata && !analyzing) {
+                if (!batchMode && caseStudy && !advancedMetadata && !metadataAnalyzing) {
                   e.target.style.backgroundColor = darkMode ? '#1f2937' : 'white';
                   e.target.style.transform = 'translateY(0px)';
                   e.target.style.boxShadow = batchMode && batchStep === 2 ? '0 0 0 2px #3b82f6' : '0 1px 3px rgba(0,0,0,0.1)';
@@ -1647,7 +1528,7 @@ Return ONLY the JSON object above with your analysis results.`;
                 <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#1e293b' }}>
                   🔬 Advanced Metadata
                 </h3>
-                {caseStudy?.advancedMetadata && !analyzing && (
+                {advancedMetadata && !metadataAnalyzing && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1681,15 +1562,15 @@ Return ONLY the JSON object above with your analysis results.`;
                 color: darkMode ? '#9ca3af' : '#64748b',
                 padding: '20px',
                 textAlign: 'center',
-                backgroundColor: caseStudy?.advancedMetadata ? (darkMode ? '#065f46' : '#f0fdf4') : (darkMode ? '#374151' : '#f8fafc'),
+                backgroundColor: advancedMetadata ? (darkMode ? '#065f46' : '#f0fdf4') : (darkMode ? '#374151' : '#f8fafc'),
                 borderRadius: '8px',
-                border: caseStudy?.advancedMetadata ? `1px solid #10b981` : `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`,
+                border: advancedMetadata ? `1px solid #10b981` : `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`,
                 minHeight: '60px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                {analyzing ? (
+                {metadataAnalyzing ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{
                       width: '20px',
@@ -1701,13 +1582,13 @@ Return ONLY the JSON object above with your analysis results.`;
                     }}></div>
                     Analyzing case study...
                   </div>
-                ) : caseStudy?.advancedMetadata ? (
+                ) : advancedMetadata ? (
                   <div style={{ textAlign: 'left', width: '100%' }}>
                     <div style={{ display: 'grid', gap: '8px', fontSize: '14px' }}>
-                      <div><strong>Algorithms:</strong> {caseStudy.advancedMetadata.algorithms?.join(', ') || 'None'}</div>
-                      <div><strong>Industries:</strong> {caseStudy.advancedMetadata.industries?.join(', ') || 'None'}</div>
-                      <div><strong>Personas:</strong> {caseStudy.advancedMetadata.personas?.join(', ') || 'None'}</div>
-                      <div><strong>Confidence:</strong> {caseStudy.advancedMetadata.confidence_score || 'N/A'}</div>
+                      <div><strong>Algorithms:</strong> {advancedMetadata.algorithms?.join(', ') || 'None'}</div>
+                      <div><strong>Industries:</strong> {advancedMetadata.industries?.join(', ') || 'None'}</div>
+                      <div><strong>Personas:</strong> {advancedMetadata.personas?.join(', ') || 'None'}</div>
+                      <div><strong>Confidence:</strong> {advancedMetadata.confidence_score || 'N/A'}</div>
                     </div>
                   </div>
                 ) : caseStudy ? (
