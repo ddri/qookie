@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useCaseStudyStore, useMetadataStore } from './stores';
+import { useCaseStudyStore, useMetadataStore, useReferencesStore } from './stores';
 
 function App() {
   const [partnerships, setPartnerships] = useState([]);
@@ -24,11 +24,25 @@ function App() {
     error: metadataError,
     clearError: clearMetadataError
   } = useMetadataStore();
+
+  const {
+    getReferences,
+    getFurtherReading,
+    getCollectionNotes,
+    collectReferences: storeCollectReferences,
+    isCollected,
+    collecting: referencesCollecting,
+    error: referencesError,
+    clearError: clearReferencesError
+  } = useReferencesStore();
   
   // Derived state
   const caseStudy = selectedPartnership ? getCaseStudy(selectedPartnership.id) : null;
   const basicMetadata = selectedPartnership ? getBasicMetadata(selectedPartnership.id) : null;
   const advancedMetadata = selectedPartnership ? getAdvancedMetadata(selectedPartnership.id) : null;
+  const references = selectedPartnership ? getReferences(selectedPartnership.id) : [];
+  const furtherReading = selectedPartnership ? getFurtherReading(selectedPartnership.id) : [];
+  const referencesCollected = selectedPartnership ? isCollected(selectedPartnership.id) : false;
   
   const [error, setError] = useState(null);
   const [researchHistory, setResearchHistory] = useState([]);
@@ -42,7 +56,7 @@ function App() {
   const [selectedModel, setSelectedModel] = useState('claude-sonnet-4-20250514');
   const [githubPushing, setGithubPushing] = useState(false);
   const [githubStatus, setGithubStatus] = useState(null); // 'success', 'error', or null
-  const [collectingReferences, setCollectingReferences] = useState(false);
+  // Removed: const [collectingReferences, setCollectingReferences] = useState(false); - now using referencesCollecting from store
   const [backupStatus, setBackupStatus] = useState(null); // 'backing-up', 'success', 'error', or null
   const [restoreStatus, setRestoreStatus] = useState(null); // 'restoring', 'success', 'error', or null
   const [availableBackups, setAvailableBackups] = useState([]);
@@ -371,120 +385,28 @@ ${caseStudy.collectionNotes}
     }
   };
 
-  const collectReferences = async (partnership, caseStudy) => {
+  // Wrapper function for references collection using the store
+  const handleCollectReferences = async (partnership, caseStudy) => {
     if (!caseStudy) return;
     
-    setCollectingReferences(true);
-    setError(null);
-
     try {
-      console.log('Collecting references and further reading...', partnership);
+      clearReferencesError(); // Clear any previous errors
       
-      // Step 1: Search for academic papers
-      const academicQuery = `"${partnership.company}" "${partnership.partner}" quantum computing research paper`;
-      console.log('Searching for academic papers:', academicQuery);
+      // Use the references store to perform collection
+      const result = await storeCollectReferences(partnership, caseStudy);
       
-      const academicResponse = await fetch('http://localhost:3002/api/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: academicQuery,
-          type: 'academic'
-        })
-      });
+      console.log('✅ References collection completed successfully')
+      return result
       
-      if (!academicResponse.ok) {
-        throw new Error(`Academic search failed: ${academicResponse.status}`);
-      }
-      
-      const academicData = await academicResponse.json();
-      console.log('Academic search results:', academicData);
-      
-      // Step 2: Search for business coverage
-      const businessQuery = `"${partnership.company}" "${partnership.partner}" partnership announcement blog press release`;
-      console.log('Searching for business coverage:', businessQuery);
-      
-      const businessResponse = await fetch('http://localhost:3002/api/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: businessQuery,
-          type: 'business'
-        })
-      });
-      
-      if (!businessResponse.ok) {
-        throw new Error(`Business search failed: ${businessResponse.status}`);
-      }
-      
-      const businessData = await businessResponse.json();
-      console.log('Business search results:', businessData);
-      
-      // Step 3: Have Claude format the search results
-      const response = await fetch('http://localhost:3002/api/references', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          academicData,
-          businessData,
-          caseStudy,
-          model: selectedModel
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'References collection request failed');
-      }
-
-      // Parse the references results
-      let referencesResult;
-      try {
-        console.log('Raw references API response:', data);
-        
-        // The new /api/references endpoint returns data.references
-        if (data.references) {
-          referencesResult = data.references;
-          console.log('Found references in new endpoint response');
-        } else {
-          throw new Error('No references data in response');
-        }
-        
-        console.log('Final references result:', referencesResult);
-        console.log('References array:', referencesResult.references);
-        console.log('Further reading array:', referencesResult.further_reading);
-      } catch (parseError) {
-        console.error('Parse error details:', parseError);
-        throw new Error(`Failed to parse references results: ${parseError.message}`);
-      }
-
-      // Add references and further reading to case study
-      const enhancedCaseStudy = {
-        ...caseStudy,
-        references: referencesResult.references || [],
-        furtherReading: referencesResult.further_reading || [],
-        collectionNotes: referencesResult.collection_notes || '',
-        _referencesCollected: true,
-        _referencesCollectedAt: new Date().toISOString()
-      };
-      
-      console.log('Enhanced case study references:', enhancedCaseStudy.references);
-      console.log('Enhanced case study furtherReading:', enhancedCaseStudy.furtherReading);
-
-      // Save enhanced case study to cache and store
-      saveCaseStudyToCache(partnership.id, enhancedCaseStudy);
-      useCaseStudyStore.getState().setCaseStudy(partnership.id, enhancedCaseStudy);
-
-      console.log('References and further reading collection completed successfully');
-
     } catch (error) {
-      console.error('Error collecting references:', error);
+      console.error('❌ Error collecting references:', error);
       setError(`Failed to collect references: ${error.message}`);
-    } finally {
-      setCollectingReferences(false);
+      throw error
     }
   };
+
+  // Keep old function name for backward compatibility during migration
+  const collectReferences = handleCollectReferences;
 
   // Wrapper function for metadata analysis using the store
   const handleAnalyzeCaseStudy = async (partnership, caseStudy) => {
@@ -624,7 +546,7 @@ ${caseStudy.collectionNotes}
     setBatchError(null);
     clearCaseStudyError();
     clearMetadataError();
-    setCollectingReferences(false);
+    clearReferencesError();
     console.log('🛑 Batch process stopped by user');
   };
 
@@ -1608,26 +1530,26 @@ ${caseStudy.collectionNotes}
 
             {/* References Container */}
             <div 
-              onClick={() => !batchMode && caseStudy && !caseStudy._referencesCollected && !collectingReferences ? collectReferences(selectedPartnership, caseStudy) : null}
+              onClick={() => !batchMode && caseStudy && !referencesCollected && !referencesCollecting ? collectReferences(selectedPartnership, caseStudy) : null}
               style={{ 
                 backgroundColor: darkMode ? '#1f2937' : 'white',
                 borderRadius: '12px',
                 padding: '24px',
                 boxShadow: batchMode && batchStep === 3 ? '0 0 0 2px #3b82f6' : '0 1px 3px rgba(0,0,0,0.1)',
                 border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0',
-                cursor: !batchMode && caseStudy && !caseStudy._referencesCollected && !collectingReferences ? 'pointer' : 'default',
+                cursor: !batchMode && caseStudy && !referencesCollected && !referencesCollecting ? 'pointer' : 'default',
                 transition: 'all 0.2s ease',
                 opacity: !caseStudy ? 0.6 : 1
               }}
               onMouseEnter={(e) => {
-                if (!batchMode && caseStudy && !caseStudy._referencesCollected && !collectingReferences) {
+                if (!batchMode && caseStudy && !referencesCollected && !referencesCollecting) {
                   e.target.style.backgroundColor = darkMode ? '#374151' : '#f8fafc';
                   e.target.style.transform = 'translateY(-2px)';
                   e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
                 }
               }}
               onMouseLeave={(e) => {
-                if (!batchMode && caseStudy && !caseStudy._referencesCollected && !collectingReferences) {
+                if (!batchMode && caseStudy && !referencesCollected && !referencesCollecting) {
                   e.target.style.backgroundColor = darkMode ? '#1f2937' : 'white';
                   e.target.style.transform = 'translateY(0px)';
                   e.target.style.boxShadow = batchMode && batchStep === 3 ? '0 0 0 2px #3b82f6' : '0 1px 3px rgba(0,0,0,0.1)';
@@ -1638,7 +1560,7 @@ ${caseStudy.collectionNotes}
                 <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#1e293b' }}>
                   📚 References
                 </h3>
-                {caseStudy?._referencesCollected && !collectingReferences && (
+                {referencesCollected && !referencesCollecting && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1672,15 +1594,15 @@ ${caseStudy.collectionNotes}
                 color: darkMode ? '#9ca3af' : '#64748b',
                 padding: '20px',
                 textAlign: 'center',
-                backgroundColor: caseStudy?._referencesCollected ? (darkMode ? '#451a03' : '#fefce8') : (darkMode ? '#374151' : '#f8fafc'),
+                backgroundColor: referencesCollected ? (darkMode ? '#451a03' : '#fefce8') : (darkMode ? '#374151' : '#f8fafc'),
                 borderRadius: '8px',
-                border: caseStudy?._referencesCollected ? `1px solid #fde047` : `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`,
+                border: referencesCollected ? `1px solid #fde047` : `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`,
                 minHeight: '60px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                {collectingReferences ? (
+                {referencesCollecting ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{
                       width: '20px',
@@ -1692,14 +1614,14 @@ ${caseStudy.collectionNotes}
                     }}></div>
                     Collecting references...
                   </div>
-                ) : caseStudy?._referencesCollected ? (
+                ) : referencesCollected ? (
                   <div style={{ textAlign: 'left', width: '100%' }}>
                     <div style={{ fontSize: '14px' }}>
                       <div style={{ fontWeight: '600', marginBottom: '8px', color: darkMode ? '#f3f4f6' : '#1f2937' }}>
                         References Collected
                       </div>
-                      <div>Academic papers: {caseStudy.references?.length || 0}</div>
-                      <div>Further reading: {caseStudy.furtherReading?.length || 0}</div>
+                      <div>Academic papers: {references.length || 0}</div>
+                      <div>Further reading: {furtherReading.length || 0}</div>
                     </div>
                   </div>
                 ) : caseStudy ? (
@@ -1724,7 +1646,7 @@ ${caseStudy.collectionNotes}
               padding: '24px',
               boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
               border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0',
-              opacity: !caseStudy?._referencesCollected ? 0.6 : 1
+              opacity: !referencesCollected ? 0.6 : 1
             }}>
               <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#1e293b' }}>
                 📰 Resources
@@ -1733,27 +1655,27 @@ ${caseStudy.collectionNotes}
                 color: darkMode ? '#9ca3af' : '#64748b',
                 padding: '20px',
                 textAlign: 'center',
-                backgroundColor: caseStudy?.furtherReading?.length > 0 ? (darkMode ? '#064e3b' : '#f0fdf4') : (darkMode ? '#374151' : '#f8fafc'),
+                backgroundColor: furtherReading.length > 0 ? (darkMode ? '#064e3b' : '#f0fdf4') : (darkMode ? '#374151' : '#f8fafc'),
                 borderRadius: '8px',
-                border: caseStudy?.furtherReading?.length > 0 ? `1px solid #bbf7d0` : `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`,
+                border: furtherReading.length > 0 ? `1px solid #bbf7d0` : `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`,
                 minHeight: '60px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                {caseStudy?.furtherReading?.length > 0 ? (
+                {furtherReading.length > 0 ? (
                   <div style={{ textAlign: 'left', width: '100%' }}>
                     <div style={{ fontSize: '14px' }}>
                       <div style={{ fontWeight: '600', marginBottom: '8px', color: darkMode ? '#f3f4f6' : '#1f2937' }}>
                         Further Reading Available
                       </div>
-                      <div>Business articles: {caseStudy.furtherReading.length}</div>
+                      <div>Business articles: {furtherReading.length}</div>
                       <div style={{ fontSize: '12px', opacity: 0.7, marginTop: '4px' }}>
                         Collected with references
                       </div>
                     </div>
                   </div>
-                ) : caseStudy?._referencesCollected ? (
+                ) : referencesCollected ? (
                   <div style={{ fontSize: '14px', opacity: 0.7 }}>
                     No additional resources found
                   </div>
