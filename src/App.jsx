@@ -22,6 +22,8 @@ function App() {
   const [restoreStatus, setRestoreStatus] = useState(null); // 'restoring', 'success', 'error', or null
   const [availableBackups, setAvailableBackups] = useState([]);
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+  const [showFileConflictDialog, setShowFileConflictDialog] = useState(false);
+  const [fileConflictData, setFileConflictData] = useState(null);
   const [darkMode, setDarkMode] = useState(true);
 
   // Load CSV data and research history on mount
@@ -665,9 +667,78 @@ Return ONLY the JSON object above with your analysis results.`;
 
     } catch (error) {
       console.error('Error pushing to GitHub:', error);
-      setError(`Failed to push to GitHub: ${error.message}`);
-      setGithubStatus('error');
+      
+      // Parse structured error messages from server
+      if (error.message.startsWith('FILE_EXISTS:')) {
+        const parts = error.message.split(':');
+        const filename = parts[1];
+        const message = parts[2];
+        
+        setFileConflictData({
+          partnership,
+          caseStudy,
+          filename: filename.replace('exports/', '').replace(/\.(md|json)$/, ''),
+          message
+        });
+        setShowFileConflictDialog(true);
+        setGithubStatus(null);
+      } else if (error.message.startsWith('REPO_NOT_FOUND:')) {
+        setError('Repository not found or no access. Please check your GitHub configuration in .env file.');
+        setGithubStatus('error');
+      } else if (error.message.startsWith('AUTH_ERROR:')) {
+        setError('Invalid GitHub token. Please check your GITHUB_TOKEN in .env file.');
+        setGithubStatus('error');
+      } else if (error.message.startsWith('GITHUB_ERROR:')) {
+        const message = error.message.replace('GITHUB_ERROR:', '');
+        setError(`GitHub API error: ${message}`);
+        setGithubStatus('error');
+      } else {
+        setError(`Failed to push to GitHub: ${error.message}`);
+        setGithubStatus('error');
+      }
+      
+      if (!error.message.startsWith('FILE_EXISTS:')) {
+        setTimeout(() => setGithubStatus(null), 8000);
+      }
+    } finally {
+      setGithubPushing(false);
+    }
+  };
+
+  const overwriteGitHubFiles = async (partnership, caseStudy, filename) => {
+    setGithubPushing(true);
+    setGithubStatus(null);
+    setError(null);
+    setShowFileConflictDialog(false);
+
+    try {
+      console.log('Overwriting GitHub files:', filename);
+
+      const response = await fetch('http://localhost:3002/api/github/overwrite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          partnership: partnership,
+          caseStudy: caseStudy,
+          filename: filename
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'GitHub overwrite failed');
+      }
+
+      setGithubStatus('success');
       setTimeout(() => setGithubStatus(null), 5000);
+      console.log('Successfully overwritten GitHub files:', data.files);
+
+    } catch (error) {
+      console.error('Error overwriting GitHub files:', error);
+      setError(`Failed to overwrite GitHub files: ${error.message}`);
+      setGithubStatus('error');
+      setTimeout(() => setGithubStatus(null), 8000);
     } finally {
       setGithubPushing(false);
     }
@@ -1246,16 +1317,16 @@ Return ONLY the JSON object above with your analysis results.`;
                   )}
 
                   {/* Case Study Content */}
-                  {caseStudy && (
-                    <>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
-                        <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#1e293b' }}>
-                          📄 Case Study
-                        </h2>
+                  {/* Always show case study structure when partnership is selected */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
+                    <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#1e293b' }}>
+                      📄 Case Study
+                    </h2>
                         
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          {/* Export button */}
-                          <button
+                    {caseStudy && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        {/* Export button */}
+                        <button
                             onClick={() => exportToMarkdown(selectedPartnership, caseStudy)}
                             style={{
                               padding: '8px 16px',
@@ -1348,97 +1419,211 @@ Return ONLY the JSON object above with your analysis results.`;
                             </div>
                           )}
                         </div>
-                      </div>
+                      )}
+                    </div>
                 
+                    {/* Case Study Title and Content - Always show structure */}
+                    {caseStudy ? (
                       <h3 style={{ fontSize: '22px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#1e293b', marginBottom: '24px' }}>
                         {caseStudy.title}
                       </h3>
+                    ) : (
+                      <h3 style={{ fontSize: '22px', fontWeight: '600', color: darkMode ? '#9ca3af' : '#64748b', marginBottom: '24px' }}>
+                        {loading ? 'Generating case study...' : 'Case study will appear here'}
+                      </h3>
+                    )}
                 
-                {caseStudy.summary && (
-                  <div style={{ marginBottom: '32px' }}>
-                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
-                      📋 Executive Summary
-                    </h4>
+                {/* Executive Summary - Always show */}
+                <div style={{ marginBottom: '32px' }}>
+                  <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
+                    📋 Executive Summary
+                  </h4>
+                  {caseStudy?.summary ? (
                     <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
                       {caseStudy.summary}
                     </p>
-                  </div>
-                )}
+                  ) : (
+                    <div style={{ 
+                      color: darkMode ? '#6b7280' : '#9ca3af', 
+                      lineHeight: '1.7', 
+                      fontSize: '15px', 
+                      margin: 0,
+                      fontStyle: 'italic',
+                      padding: '16px',
+                      backgroundColor: darkMode ? '#374151' : '#f8fafc',
+                      borderRadius: '6px',
+                      border: `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`
+                    }}>
+                      {loading ? 'Generating executive summary...' : 'Executive summary will appear here'}
+                    </div>
+                  )}
+                </div>
 
-                {caseStudy.introduction && (
-                  <div style={{ marginBottom: '32px' }}>
-                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
-                      🚀 Introduction
-                    </h4>
+                {/* Introduction - Always show */}
+                <div style={{ marginBottom: '32px' }}>
+                  <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
+                    🚀 Introduction
+                  </h4>
+                  {caseStudy?.introduction ? (
                     <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
                       {caseStudy.introduction}
                     </p>
-                  </div>
-                )}
+                  ) : (
+                    <div style={{ 
+                      color: darkMode ? '#6b7280' : '#9ca3af', 
+                      lineHeight: '1.7', 
+                      fontSize: '15px', 
+                      margin: 0,
+                      fontStyle: 'italic',
+                      padding: '16px',
+                      backgroundColor: darkMode ? '#374151' : '#f8fafc',
+                      borderRadius: '6px',
+                      border: `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`
+                    }}>
+                      {loading ? 'Generating introduction...' : 'Introduction will appear here'}
+                    </div>
+                  )}
+                </div>
 
-                {caseStudy.challenge && (
-                  <div style={{ marginBottom: '32px' }}>
-                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
-                      ⚡ Challenge
-                    </h4>
+                {/* Challenge - Always show */}
+                <div style={{ marginBottom: '32px' }}>
+                  <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
+                    ⚡ Challenge
+                  </h4>
+                  {caseStudy?.challenge ? (
                     <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
                       {caseStudy.challenge}
                     </p>
-                  </div>
-                )}
+                  ) : (
+                    <div style={{ 
+                      color: darkMode ? '#6b7280' : '#9ca3af', 
+                      lineHeight: '1.7', 
+                      fontSize: '15px', 
+                      margin: 0,
+                      fontStyle: 'italic',
+                      padding: '16px',
+                      backgroundColor: darkMode ? '#374151' : '#f8fafc',
+                      borderRadius: '6px',
+                      border: `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`
+                    }}>
+                      {loading ? 'Generating challenge description...' : 'Challenge description will appear here'}
+                    </div>
+                  )}
+                </div>
 
-                {caseStudy.solution && (
-                  <div style={{ marginBottom: '32px' }}>
-                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
-                      💡 Solution
-                    </h4>
+                {/* Solution - Always show */}
+                <div style={{ marginBottom: '32px' }}>
+                  <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
+                    💡 Solution
+                  </h4>
+                  {caseStudy?.solution ? (
                     <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
                       {caseStudy.solution}
                     </p>
-                  </div>
-                )}
+                  ) : (
+                    <div style={{ 
+                      color: darkMode ? '#6b7280' : '#9ca3af', 
+                      lineHeight: '1.7', 
+                      fontSize: '15px', 
+                      margin: 0,
+                      fontStyle: 'italic',
+                      padding: '16px',
+                      backgroundColor: darkMode ? '#374151' : '#f8fafc',
+                      borderRadius: '6px',
+                      border: `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`
+                    }}>
+                      {loading ? 'Generating solution description...' : 'Solution description will appear here'}
+                    </div>
+                  )}
+                </div>
 
-                {caseStudy.implementation && (
-                  <div style={{ marginBottom: '32px' }}>
-                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
-                      ⚙️ Implementation
-                    </h4>
+                {/* Implementation - Always show */}
+                <div style={{ marginBottom: '32px' }}>
+                  <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
+                    ⚙️ Implementation
+                  </h4>
+                  {caseStudy?.implementation ? (
                     <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
                       {caseStudy.implementation}
                     </p>
-                  </div>
-                )}
+                  ) : (
+                    <div style={{ 
+                      color: darkMode ? '#6b7280' : '#9ca3af', 
+                      lineHeight: '1.7', 
+                      fontSize: '15px', 
+                      margin: 0,
+                      fontStyle: 'italic',
+                      padding: '16px',
+                      backgroundColor: darkMode ? '#374151' : '#f8fafc',
+                      borderRadius: '6px',
+                      border: `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`
+                    }}>
+                      {loading ? 'Generating implementation details...' : 'Implementation details will appear here'}
+                    </div>
+                  )}
+                </div>
 
-                {caseStudy.results_and_business_impact && (
-                  <div style={{ marginBottom: '32px' }}>
-                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
-                      📊 Results & Business Impact
-                    </h4>
+                {/* Results & Business Impact - Always show */}
+                <div style={{ marginBottom: '32px' }}>
+                  <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
+                    📊 Results & Business Impact
+                  </h4>
+                  {caseStudy?.results_and_business_impact ? (
                     <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
                       {caseStudy.results_and_business_impact}
                     </p>
-                  </div>
-                )}
+                  ) : (
+                    <div style={{ 
+                      color: darkMode ? '#6b7280' : '#9ca3af', 
+                      lineHeight: '1.7', 
+                      fontSize: '15px', 
+                      margin: 0,
+                      fontStyle: 'italic',
+                      padding: '16px',
+                      backgroundColor: darkMode ? '#374151' : '#f8fafc',
+                      borderRadius: '6px',
+                      border: `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`
+                    }}>
+                      {loading ? 'Generating results and business impact...' : 'Results and business impact will appear here'}
+                    </div>
+                  )}
+                </div>
 
-                {caseStudy.future_directions && (
-                  <div style={{ marginBottom: '32px' }}>
-                    <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
-                      🔮 Future Directions
-                    </h4>
+                {/* Future Directions - Always show */}
+                <div style={{ marginBottom: '32px' }}>
+                  <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
+                    🔮 Future Directions
+                  </h4>
+                  {caseStudy?.future_directions ? (
                     <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
                       {caseStudy.future_directions}
                     </p>
-                  </div>
-                )}
+                  ) : (
+                    <div style={{ 
+                      color: darkMode ? '#6b7280' : '#9ca3af', 
+                      lineHeight: '1.7', 
+                      fontSize: '15px', 
+                      margin: 0,
+                      fontStyle: 'italic',
+                      padding: '16px',
+                      backgroundColor: darkMode ? '#374151' : '#f8fafc',
+                      borderRadius: '6px',
+                      border: `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`
+                    }}>
+                      {loading ? 'Generating future directions...' : 'Future directions will appear here'}
+                    </div>
+                  )}
+                </div>
                 
-                {caseStudy.metadata && (
-                  <div style={{ 
-                    marginTop: '40px', 
-                    padding: '24px', 
-                    backgroundColor: darkMode ? '#374151' : '#f8fafc', 
-                    borderRadius: '8px',
-                    border: '1px solid #e2e8f0'
-                  }}>
+                {/* Original Metadata - Always show */}
+                <div style={{ 
+                  marginTop: '40px', 
+                  padding: '24px', 
+                  backgroundColor: darkMode ? '#374151' : '#f8fafc', 
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0',
+                  opacity: caseStudy?.metadata ? 1 : 0.6
+                }}>
                     <h4 style={{ 
                       fontSize: '18px', 
                       fontWeight: '600',
@@ -1461,55 +1646,59 @@ Return ONLY the JSON object above with your analysis results.`;
                       </span>
                     </h4>
                     
-                    <div style={{ display: 'grid', gap: '12px' }}>
-                      <div>
-                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Algorithms: </span>
-                        <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
-                          {caseStudy.metadata.algorithms && caseStudy.metadata.algorithms.length > 0 
-                            ? caseStudy.metadata.algorithms.join(', ') 
-                            : 'None specified'}
-                        </span>
-                      </div>
-                      <div>
-                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Industries: </span>
-                        <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
-                          {caseStudy.metadata.industries && caseStudy.metadata.industries.length > 0 
-                            ? caseStudy.metadata.industries.join(', ') 
-                            : 'None specified'}
-                        </span>
-                      </div>
-                      <div>
-                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Target Personas: </span>
-                        <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
-                          {caseStudy.metadata.personas && caseStudy.metadata.personas.length > 0 
-                            ? caseStudy.metadata.personas.join(', ') 
-                            : 'None specified'}
-                        </span>
-                      </div>
-                      <div>
-                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Confidence Score: </span>
-                        <span style={{ 
-                          color: darkMode ? '#f3f4f6' : '#1f2937',
-                          backgroundColor: '#dbeafe',
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          fontSize: '14px'
-                        }}>
-                          {caseStudy.metadata.confidence_score || 'Not provided'}
-                        </span>
-                      </div>
+                  <div style={{ display: 'grid', gap: '12px' }}>
+                    <div>
+                      <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Algorithms: </span>
+                      <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
+                        {caseStudy?.metadata?.algorithms && caseStudy.metadata.algorithms.length > 0 
+                          ? caseStudy.metadata.algorithms.join(', ') 
+                          : loading ? 'Analyzing algorithms...' : 'Will be identified during generation'}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Industries: </span>
+                      <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
+                        {caseStudy?.metadata?.industries && caseStudy.metadata.industries.length > 0 
+                          ? caseStudy.metadata.industries.join(', ') 
+                          : loading ? 'Identifying industries...' : 'Will be identified during generation'}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Target Personas: </span>
+                      <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
+                        {caseStudy?.metadata?.personas && caseStudy.metadata.personas.length > 0 
+                          ? caseStudy.metadata.personas.join(', ') 
+                          : loading ? 'Identifying personas...' : 'Will be identified during generation'}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Confidence Score: </span>
+                      <span style={{ 
+                        color: darkMode ? '#f3f4f6' : '#1f2937',
+                        backgroundColor: caseStudy?.metadata?.confidence_score ? '#dbeafe' : darkMode ? '#4b5563' : '#f1f5f9',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '14px'
+                      }}>
+                        {caseStudy?.metadata?.confidence_score || (loading ? 'Calculating...' : 'Will be calculated')}
+                      </span>
                     </div>
                   </div>
-                )}
+                </div>
 
-                {caseStudy.advancedMetadata && (
-                  <div style={{ 
-                    marginTop: '20px', 
-                    padding: '24px', 
-                    backgroundColor: darkMode ? '#1e3a8a' : '#f0f9ff', 
-                    borderRadius: '8px',
-                    border: darkMode ? '1px solid #3b82f6' : '1px solid #bae6fd'
-                  }}>
+                {/* Advanced Metadata - Always show */}
+                <div style={{ 
+                  marginTop: '20px', 
+                  padding: '24px', 
+                  backgroundColor: caseStudy?.advancedMetadata 
+                    ? (darkMode ? '#1e3a8a' : '#f0f9ff')
+                    : (darkMode ? '#374151' : '#f8fafc'), 
+                  borderRadius: '8px',
+                  border: caseStudy?.advancedMetadata 
+                    ? (darkMode ? '1px solid #3b82f6' : '1px solid #bae6fd')
+                    : `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`,
+                  opacity: caseStudy?.advancedMetadata ? 1 : 0.6
+                }}>
                     <h4 style={{ 
                       fontSize: '18px', 
                       fontWeight: '600',
@@ -1521,14 +1710,16 @@ Return ONLY the JSON object above with your analysis results.`;
                     }}>
                       🔬 Advanced Metadata
                       <span style={{
-                        backgroundColor: '#10b981',
+                        backgroundColor: caseStudy?.advancedMetadata 
+                          ? '#10b981' 
+                          : analyzing ? '#f59e0b' : '#6b7280',
                         color: 'white',
                         fontSize: '10px',
                         padding: '2px 6px',
                         borderRadius: '3px',
                         fontWeight: '500'
                       }}>
-                        ANALYZED
+                        {caseStudy?.advancedMetadata ? 'ANALYZED' : analyzing ? 'ANALYZING' : 'PENDING ANALYSIS'}
                       </span>
                     </h4>
                     
@@ -1536,66 +1727,69 @@ Return ONLY the JSON object above with your analysis results.`;
                       <div>
                         <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Algorithms: </span>
                         <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
-                          {caseStudy.advancedMetadata.algorithms && caseStudy.advancedMetadata.algorithms.length > 0 
+                          {caseStudy?.advancedMetadata?.algorithms && caseStudy.advancedMetadata.algorithms.length > 0 
                             ? caseStudy.advancedMetadata.algorithms.join(', ') 
-                            : 'None specified'}
+                            : analyzing ? 'Analyzing algorithms...' : 'Click "Analyze Case Study" to get advanced insights'}
                         </span>
                       </div>
                       <div>
                         <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Industries: </span>
                         <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
-                          {caseStudy.advancedMetadata.industries && caseStudy.advancedMetadata.industries.length > 0 
+                          {caseStudy?.advancedMetadata?.industries && caseStudy.advancedMetadata.industries.length > 0 
                             ? caseStudy.advancedMetadata.industries.join(', ') 
-                            : 'None specified'}
+                            : analyzing ? 'Analyzing industries...' : 'Advanced industry analysis pending'}
                         </span>
                       </div>
                       <div>
                         <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Target Personas: </span>
                         <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
-                          {caseStudy.advancedMetadata.personas && caseStudy.advancedMetadata.personas.length > 0 
+                          {caseStudy?.advancedMetadata?.personas && caseStudy.advancedMetadata.personas.length > 0 
                             ? caseStudy.advancedMetadata.personas.join(', ') 
-                            : 'None specified'}
+                            : analyzing ? 'Analyzing personas...' : 'Persona analysis pending'}
                         </span>
                       </div>
                       <div>
                         <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Confidence Score: </span>
                         <span style={{ 
                           color: darkMode ? '#f3f4f6' : '#1f2937',
-                          backgroundColor: '#dbeafe',
+                          backgroundColor: caseStudy?.advancedMetadata?.confidence_score ? '#dbeafe' : darkMode ? '#4b5563' : '#f1f5f9',
                           padding: '2px 8px',
                           borderRadius: '4px',
                           fontSize: '14px'
                         }}>
-                          {caseStudy.advancedMetadata.confidence_score || 'Not provided'}
+                          {caseStudy?.advancedMetadata?.confidence_score || (analyzing ? 'Calculating...' : 'Advanced scoring pending')}
                         </span>
                       </div>
-                      {caseStudy.advancedMetadata.analysis_notes && (
-                        <div>
-                          <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Analysis Notes: </span>
-                          <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937', fontStyle: 'italic' }}>
-                            {caseStudy.advancedMetadata.analysis_notes}
-                          </span>
-                        </div>
-                      )}
+                      <div>
+                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Analysis Notes: </span>
+                        <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937', fontStyle: 'italic' }}>
+                          {caseStudy?.advancedMetadata?.analysis_notes || (analyzing ? 'Generating analysis notes...' : 'Analysis notes will appear here')}
+                        </span>
+                      </div>
                       <div>
                         <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Analyzed: </span>
                         <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937', fontSize: '14px' }}>
-                          {new Date(caseStudy.advancedMetadata._analyzedAt).toLocaleString()}
+                          {caseStudy?.advancedMetadata?._analyzedAt 
+                            ? new Date(caseStudy.advancedMetadata._analyzedAt).toLocaleString()
+                            : analyzing ? 'Analysis in progress...' : 'Not yet analyzed'}
                         </span>
                       </div>
-                      </div>
                     </div>
-                  )}
+                  </div>
 
-                  {/* References Section */}
-                  {caseStudy.references && caseStudy.references.length > 0 && (
-                    <div style={{ 
-                      marginTop: '20px', 
-                      padding: '24px', 
-                      backgroundColor: darkMode ? '#451a03' : '#fefce8', 
-                      borderRadius: '8px',
-                      border: '1px solid #fde047'
-                    }}>
+                  {/* References Section - Always show */}
+                  <div style={{ 
+                    marginTop: '20px', 
+                    padding: '24px', 
+                    backgroundColor: (caseStudy?.references && caseStudy.references.length > 0)
+                      ? (darkMode ? '#451a03' : '#fefce8')
+                      : (darkMode ? '#374151' : '#f8fafc'), 
+                    borderRadius: '8px',
+                    border: (caseStudy?.references && caseStudy.references.length > 0)
+                      ? '1px solid #fde047'
+                      : `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`,
+                    opacity: (caseStudy?.references && caseStudy.references.length > 0) ? 1 : 0.6
+                  }}>
                       <h4 style={{ 
                         fontSize: '18px', 
                         fontWeight: '600',
@@ -1607,19 +1801,24 @@ Return ONLY the JSON object above with your analysis results.`;
                       }}>
                         📚 References
                         <span style={{
-                          backgroundColor: '#f59e0b',
+                          backgroundColor: (caseStudy?.references && caseStudy.references.length > 0) 
+                            ? '#f59e0b' 
+                            : collectingReferences ? '#3b82f6' : '#6b7280',
                           color: 'white',
                           fontSize: '10px',
                           padding: '2px 6px',
                           borderRadius: '3px',
                           fontWeight: '500'
                         }}>
-                          ACADEMIC
+                          {(caseStudy?.references && caseStudy.references.length > 0) 
+                            ? 'ACADEMIC' 
+                            : collectingReferences ? 'COLLECTING' : 'PENDING'}
                         </span>
                       </h4>
                       
-                      <div style={{ display: 'grid', gap: '16px' }}>
-                        {caseStudy.references.map((ref, index) => (
+                      {(caseStudy?.references && caseStudy.references.length > 0) ? (
+                        <div style={{ display: 'grid', gap: '16px' }}>
+                          {caseStudy.references.map((ref, index) => (
                           <div key={index} style={{ 
                             padding: '16px',
                             backgroundColor: darkMode ? '#374151' : 'white',
@@ -1672,20 +1871,39 @@ Return ONLY the JSON object above with your analysis results.`;
                               </div>
                             )}
                           </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ 
+                          color: darkMode ? '#6b7280' : '#9ca3af', 
+                          lineHeight: '1.7', 
+                          fontSize: '15px', 
+                          margin: 0,
+                          fontStyle: 'italic',
+                          padding: '16px',
+                          backgroundColor: darkMode ? '#4b5563' : '#f1f5f9',
+                          borderRadius: '6px',
+                          border: `1px dashed ${darkMode ? '#6b7280' : '#cbd5e1'}`,
+                          textAlign: 'center'
+                        }}>
+                          {collectingReferences ? 'Searching for relevant scientific papers...' : 'Click "Collect References" to gather academic sources'}
+                        </div>
+                      )}
                     </div>
-                  )}
 
-                  {/* Further Reading Section */}
-                  {caseStudy.furtherReading && caseStudy.furtherReading.length > 0 && (
-                    <div style={{ 
-                      marginTop: '20px', 
-                      padding: '24px', 
-                      backgroundColor: darkMode ? '#064e3b' : '#f0fdf4', 
-                      borderRadius: '8px',
-                      border: '1px solid #bbf7d0'
-                    }}>
+                  {/* Further Reading Section - Always show */}
+                  <div style={{ 
+                    marginTop: '20px', 
+                    padding: '24px', 
+                    backgroundColor: (caseStudy?.furtherReading && caseStudy.furtherReading.length > 0)
+                      ? (darkMode ? '#064e3b' : '#f0fdf4')
+                      : (darkMode ? '#374151' : '#f8fafc'), 
+                    borderRadius: '8px',
+                    border: (caseStudy?.furtherReading && caseStudy.furtherReading.length > 0)
+                      ? '1px solid #bbf7d0'
+                      : `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`,
+                    opacity: (caseStudy?.furtherReading && caseStudy.furtherReading.length > 0) ? 1 : 0.6
+                  }}>
                       <h4 style={{ 
                         fontSize: '18px', 
                         fontWeight: '600',
@@ -1697,19 +1915,24 @@ Return ONLY the JSON object above with your analysis results.`;
                       }}>
                         📰 Further Reading
                         <span style={{
-                          backgroundColor: '#059669',
+                          backgroundColor: (caseStudy?.furtherReading && caseStudy.furtherReading.length > 0) 
+                            ? '#059669' 
+                            : collectingReferences ? '#3b82f6' : '#6b7280',
                           color: 'white',
                           fontSize: '10px',
                           padding: '2px 6px',
                           borderRadius: '3px',
                           fontWeight: '500'
                         }}>
-                          BUSINESS
+                          {(caseStudy?.furtherReading && caseStudy.furtherReading.length > 0) 
+                            ? 'BUSINESS' 
+                            : collectingReferences ? 'COLLECTING' : 'PENDING'}
                         </span>
                       </h4>
                       
-                      <div style={{ display: 'grid', gap: '16px' }}>
-                        {caseStudy.furtherReading.map((item, index) => (
+                      {(caseStudy?.furtherReading && caseStudy.furtherReading.length > 0) ? (
+                        <div style={{ display: 'grid', gap: '16px' }}>
+                          {caseStudy.furtherReading.map((item, index) => (
                           <div key={index} style={{ 
                             padding: '16px',
                             backgroundColor: darkMode ? '#374151' : 'white',
@@ -1751,10 +1974,25 @@ Return ONLY the JSON object above with your analysis results.`;
                               )}
                             </div>
                           </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ 
+                          color: darkMode ? '#6b7280' : '#9ca3af', 
+                          lineHeight: '1.7', 
+                          fontSize: '15px', 
+                          margin: 0,
+                          fontStyle: 'italic',
+                          padding: '16px',
+                          backgroundColor: darkMode ? '#4b5563' : '#f1f5f9',
+                          borderRadius: '6px',
+                          border: `1px dashed ${darkMode ? '#6b7280' : '#cbd5e1'}`,
+                          textAlign: 'center'
+                        }}>
+                          {collectingReferences ? 'Searching for business articles and news...' : 'Further reading materials will be collected with references'}
+                        </div>
+                      )}
                     </div>
-                  )}
 
                   {/* Collection Notes */}
                   {caseStudy.collectionNotes && (
@@ -1791,8 +2029,6 @@ Return ONLY the JSON object above with your analysis results.`;
                         </p>
                       )}
                     </div>
-                  )}
-                    </>
                   )}
                 </div>
               </div>
@@ -2092,6 +2328,139 @@ Return ONLY the JSON object above with your analysis results.`;
                 color: '#92400e'
               }}>
                 <strong>Warning:</strong> Restoring will replace all current case studies, research history, and preferences with the backup data.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* File Conflict Dialog */}
+        {showFileConflictDialog && fileConflictData && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              backgroundColor: darkMode ? '#374151' : 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '20px'
+              }}>
+                <h3 style={{
+                  margin: 0,
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: darkMode ? '#f9fafb' : '#111827'
+                }}>
+                  ⚠️ File Already Exists
+                </h3>
+                <button
+                  onClick={() => setShowFileConflictDialog(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '20px',
+                    cursor: 'pointer',
+                    color: darkMode ? '#9ca3af' : '#6b7280',
+                    padding: '4px'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div style={{
+                marginBottom: '24px',
+                color: darkMode ? '#d1d5db' : '#374151',
+                lineHeight: '1.6'
+              }}>
+                <p style={{ margin: '0 0 16px 0' }}>
+                  A case study file for <strong>{fileConflictData.partnership.company}</strong> and{' '}
+                  <strong>{fileConflictData.partnership.partner}</strong> already exists in your GitHub repository.
+                </p>
+                <p style={{ margin: 0 }}>
+                  Would you like to overwrite the existing files with the current case study?
+                </p>
+              </div>
+
+              <div style={{
+                padding: '16px',
+                backgroundColor: darkMode ? '#1f2937' : '#f9fafb',
+                borderRadius: '8px',
+                marginBottom: '20px',
+                border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`
+              }}>
+                <p style={{
+                  margin: '0 0 8px 0',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: darkMode ? '#f3f4f6' : '#1f2937'
+                }}>
+                  Files to be updated:
+                </p>
+                <ul style={{
+                  margin: 0,
+                  paddingLeft: '20px',
+                  fontSize: '14px',
+                  color: darkMode ? '#d1d5db' : '#4b5563'
+                }}>
+                  <li>exports/{fileConflictData.filename}.md</li>
+                  <li>exports/{fileConflictData.filename}.json</li>
+                </ul>
+              </div>
+
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                justifyContent: 'flex-end'
+              }}>
+                <button
+                  onClick={() => setShowFileConflictDialog(false)}
+                  style={{
+                    padding: '10px 20px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    border: `1px solid ${darkMode ? '#4b5563' : '#d1d5db'}`,
+                    borderRadius: '6px',
+                    backgroundColor: 'transparent',
+                    color: darkMode ? '#d1d5db' : '#374151',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => overwriteGitHubFiles(fileConflictData.partnership, fileConflictData.caseStudy, fileConflictData.filename)}
+                  disabled={githubPushing}
+                  style={{
+                    padding: '10px 20px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    border: 'none',
+                    borderRadius: '6px',
+                    backgroundColor: githubPushing ? '#6b7280' : '#ef4444',
+                    color: 'white',
+                    cursor: githubPushing ? 'not-allowed' : 'pointer',
+                    opacity: githubPushing ? 0.6 : 1
+                  }}
+                >
+                  {githubPushing ? 'Overwriting...' : 'Overwrite Files'}
+                </button>
               </div>
             </div>
           </div>

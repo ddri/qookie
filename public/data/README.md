@@ -1,24 +1,12 @@
-# Data Directory
+# Data Files
 
-This directory contains the source data for quantum computing case studies.
+This directory contains the active data files used by the application.
 
 ## Files
 
-- `quantum-partnerships.csv` - Master list of quantum computing partnerships
-- `research-data.json` - Completed research data (auto-generated)
+- `quantum-partnerships.csv` - Live partnership data (edit this file to update data)
+- `research-data.json` - Generated research data (managed by the app)
 
-## Updating the CSV
+## Usage
 
-1. Edit `quantum-partnerships.csv` with new partnerships
-2. Ensure IDs are unique and sequential
-3. Use quotes for partners with commas (e.g., "Accenture, Biogen")
-4. Commit changes to track history
-
-## CSV Format
-
-- `id` - Unique numeric identifier
-- `quantum_company` - The quantum computing company
-- `commercial_partner` - The commercial/enterprise partner  
-- `status` - Current status (active, completed, announced)
-- `year` - Year of partnership announcement
-- `notes` - Any additional notes
+To update partnerships, edit `quantum-partnerships.csv` and refresh the browser.

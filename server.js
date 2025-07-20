@@ -377,6 +377,176 @@ app.post('/api/analyze', async (req, res) => {
   }
 });
 
+// GitHub overwrite endpoint - for when files already exist
+app.post('/api/github/overwrite', async (req, res) => {
+  const startTime = Date.now();
+  
+  try {
+    const { partnership, caseStudy, filename } = req.body;
+    
+    if (!partnership || !caseStudy || !filename) {
+      return res.status(400).json({ error: 'Partnership, case study, and filename are required' });
+    }
+
+    const githubToken = process.env.GITHUB_TOKEN;
+    const repoOwner = process.env.GITHUB_REPO_OWNER;
+    const repoName = process.env.GITHUB_REPO_NAME;
+
+    if (!githubToken || !repoOwner || !repoName) {
+      return res.status(500).json({ 
+        error: 'GitHub configuration not complete. Please set GITHUB_TOKEN, GITHUB_REPO_OWNER, and GITHUB_REPO_NAME in .env file' 
+      });
+    }
+
+    // Generate content (same logic as main push)
+    const generateMarkdown = (caseStudy) => {
+      return `# ${caseStudy.title}
+
+## Summary
+${caseStudy.summary}
+
+## Introduction
+${caseStudy.introduction}
+
+## Challenge
+${caseStudy.challenge}
+
+## Solution
+${caseStudy.solution}
+
+## Implementation
+${caseStudy.implementation}
+
+## Results and Business Impact
+${caseStudy.results_and_business_impact}
+
+## Future Directions
+${caseStudy.future_directions}
+
+## Technical Details
+${caseStudy.technical_details}
+
+## Metadata
+- **Company**: ${caseStudy.metadata?.company}
+- **Partner**: ${caseStudy.metadata?.partner}
+- **Year**: ${caseStudy.metadata?.year}
+- **Algorithms**: ${caseStudy.algorithms?.join(', ')}
+- **Industries**: ${caseStudy.industries?.join(', ')}
+- **Personas**: ${caseStudy.personas?.join(', ')}
+
+## Scientific References
+${caseStudy.scientific_references?.map(ref => `- ${ref}`).join('\n') || 'No references available'}
+
+## Business Case Studies and Coverage
+${caseStudy.business_references?.map(ref => `- ${ref}`).join('\n') || 'No business references available'}
+
+${caseStudy.advancedMetadata ? `
+## Advanced Analysis
+- **Algorithms**: ${caseStudy.advancedMetadata.algorithms?.join(', ') || 'None specified'}
+- **Industries**: ${caseStudy.advancedMetadata.industries?.join(', ') || 'None specified'}
+- **Target Personas**: ${caseStudy.advancedMetadata.personas?.join(', ') || 'None specified'}
+- **Confidence Score**: ${caseStudy.advancedMetadata.confidence_score || '0.8'}
+- **Analysis Notes**: ${caseStudy.advancedMetadata.analysis_notes || ''}
+- **Analyzed**: ${caseStudy.advancedMetadata._analyzedAt ? new Date(caseStudy.advancedMetadata._analyzedAt).toLocaleString() : 'Not analyzed'}
+` : ''}
+
+---
+*Updated on ${new Date().toLocaleString()}*
+`;
+    };
+
+    const markdownContent = generateMarkdown(caseStudy);
+    const jsonContent = JSON.stringify(caseStudy, null, 2);
+    
+    const baseFilename = filename.replace(/\.(md|json)$/, '');
+    const markdownFilename = `exports/${baseFilename}.md`;
+    const jsonFilename = `exports/${baseFilename}.json`;
+
+    console.log(`Overwriting files in GitHub: ${repoOwner}/${repoName}`);
+
+    // Get current file SHAs for overwrite
+    const [markdownFile, jsonFile] = await Promise.all([
+      fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${markdownFilename}`, {
+        headers: {
+          'Authorization': `token ${githubToken}`,
+          'User-Agent': 'qookie'
+        }
+      }).then(res => res.ok ? res.json() : null),
+      fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${jsonFilename}`, {
+        headers: {
+          'Authorization': `token ${githubToken}`,
+          'User-Agent': 'qookie'
+        }
+      }).then(res => res.ok ? res.json() : null)
+    ]);
+
+    // Update markdown file
+    const markdownResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${markdownFilename}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${githubToken}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'qookie'
+      },
+      body: JSON.stringify({
+        message: `Update case study: ${partnership.company} + ${partnership.partner}`,
+        content: Buffer.from(markdownContent).toString('base64'),
+        sha: markdownFile?.sha,
+        branch: 'main'
+      })
+    });
+
+    if (!markdownResponse.ok) {
+      const error = await markdownResponse.text();
+      console.error('GitHub API error (markdown overwrite):', error);
+      throw new Error(`Failed to update markdown file: ${markdownResponse.status}`);
+    }
+
+    // Update JSON file
+    const jsonResponse = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${jsonFilename}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${githubToken}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'qookie'
+      },
+      body: JSON.stringify({
+        message: `Update case study data: ${partnership.company} + ${partnership.partner}`,
+        content: Buffer.from(jsonContent).toString('base64'),
+        sha: jsonFile?.sha,
+        branch: 'main'
+      })
+    });
+
+    if (!jsonResponse.ok) {
+      const error = await jsonResponse.text();
+      console.error('GitHub API error (JSON overwrite):', error);
+      throw new Error(`Failed to update JSON file: ${jsonResponse.status}`);
+    }
+
+    const markdownResult = await markdownResponse.json();
+    const jsonResult = await jsonResponse.json();
+    const responseTime = Date.now() - startTime;
+
+    console.log(`GitHub overwrite completed in ${responseTime}ms`);
+
+    res.json({
+      success: true,
+      overwritten: true,
+      files: [
+        { type: 'markdown', url: markdownResult.content.html_url },
+        { type: 'json', url: jsonResult.content.html_url }
+      ],
+      responseTime,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('GitHub overwrite error:', error);
+    res.status(500).json({ error: 'GitHub overwrite failed: ' + error.message });
+  }
+});
+
 // GitHub backup endpoint
 app.post('/api/github/push', async (req, res) => {
   const startTime = Date.now();
@@ -481,9 +651,26 @@ ${caseStudy.advancedMetadata ? `
     });
 
     if (!markdownResponse.ok) {
-      const error = await markdownResponse.text();
-      console.error('GitHub API error (markdown):', error);
-      throw new Error(`Failed to push markdown file: ${markdownResponse.status}`);
+      const errorText = await markdownResponse.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: errorText };
+      }
+      
+      console.error('GitHub API error (markdown):', errorData);
+      
+      // Handle specific error cases
+      if (markdownResponse.status === 422 && errorData.message && errorData.message.includes('sha')) {
+        throw new Error(`FILE_EXISTS:${markdownFilename}:The markdown file already exists. Would you like to overwrite it?`);
+      } else if (markdownResponse.status === 404) {
+        throw new Error(`REPO_NOT_FOUND:Repository not found or no access. Please check your GitHub configuration.`);
+      } else if (markdownResponse.status === 401) {
+        throw new Error(`AUTH_ERROR:Invalid GitHub token. Please check your GITHUB_TOKEN.`);
+      } else {
+        throw new Error(`GITHUB_ERROR:Failed to push markdown file: ${errorData.message || markdownResponse.status}`);
+      }
     }
 
     // Push JSON file
@@ -502,9 +689,26 @@ ${caseStudy.advancedMetadata ? `
     });
 
     if (!jsonResponse.ok) {
-      const error = await jsonResponse.text();
-      console.error('GitHub API error (JSON):', error);
-      throw new Error(`Failed to push JSON file: ${jsonResponse.status}`);
+      const errorText = await jsonResponse.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: errorText };
+      }
+      
+      console.error('GitHub API error (JSON):', errorData);
+      
+      // Handle specific error cases
+      if (jsonResponse.status === 422 && errorData.message && errorData.message.includes('sha')) {
+        throw new Error(`FILE_EXISTS:${jsonFilename}:The JSON file already exists. Would you like to overwrite it?`);
+      } else if (jsonResponse.status === 404) {
+        throw new Error(`REPO_NOT_FOUND:Repository not found or no access. Please check your GitHub configuration.`);
+      } else if (jsonResponse.status === 401) {
+        throw new Error(`AUTH_ERROR:Invalid GitHub token. Please check your GITHUB_TOKEN.`);
+      } else {
+        throw new Error(`GITHUB_ERROR:Failed to push JSON file: ${errorData.message || jsonResponse.status}`);
+      }
     }
 
     const markdownResult = await markdownResponse.json();

@@ -52,8 +52,8 @@ This template shows how to properly format partnership data for the Quantum Case
 1. **Get the template**: Copy `/data/quantum-partnerships-template.csv`
 2. **Add your data**: Replace example rows with real partnerships
 3. **Update IDs**: Make sure each partnership has a unique, sequential ID
-4. **Deploy**: Copy your updated CSV to `/public/data/quantum-partnerships.csv`
-5. **Refresh**: Reload the app to see your new partnerships
+4. **Save**: Save your updated CSV as `/public/data/quantum-partnerships.csv`
+5. **Refresh**: Refresh the browser to see your new partnerships
 
 ## Data Quality Tips
 
