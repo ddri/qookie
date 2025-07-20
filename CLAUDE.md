@@ -22,10 +22,9 @@ This is Qookie - a React-based quantum computing case study processor that gener
 - **SearchAllCasesFeature.jsx** - Provides search functionality across case studies
 
 ### Data Structure
-- Uses CSV files in `/public/data/` directory for quantum partnership data (copied from `/data/`)
+- Uses CSV files in `/public/data/` directory for quantum partnership data
 - Expects CSV with columns: `id`, `quantum_company`, `commercial_partner`, `year`, `notes`
 - Falls back to hardcoded data if CSV not available
-- Currently loads 22 quantum partnerships from CSV
 - Template and documentation available in `/data/CSV-TEMPLATE-README.md`
 
 ### Development Environment
