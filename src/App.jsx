@@ -25,10 +25,10 @@ function App() {
   const [showFileConflictDialog, setShowFileConflictDialog] = useState(false);
   const [fileConflictData, setFileConflictData] = useState(null);
   const [darkMode, setDarkMode] = useState(true);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-  // Load CSV data and research history on mount
+  // Load preferences and research history on mount (but not CSV data)
   useEffect(() => {
-    loadPartnerships();
     setResearchHistory(getResearchHistory());
     loadReferenceLists();
     
@@ -65,17 +65,33 @@ function App() {
     }
   }, [selectedPartnership]);
 
-  const loadPartnerships = async () => {
+  const loadPartnerships = async (csvText = null) => {
     try {
-      const response = await fetch('/data/quantum-partnerships.csv');
-      const csvText = await response.text();
-      const parsed = parseCSV(csvText);
+      let text = csvText;
+      if (!text) {
+        const response = await fetch('/data/quantum-partnerships.csv');
+        text = await response.text();
+      }
+      const parsed = parseCSV(text);
       setPartnerships(parsed);
+      setIsDataLoaded(true);
       console.log(`Loaded ${parsed.length} partnerships`);
     } catch (error) {
       console.error('Failed to load partnerships:', error);
       setError('Failed to load partnership data');
     }
+  };
+
+  const importCSVFile = (file) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const csvText = e.target.result;
+      loadPartnerships(csvText);
+    };
+    reader.onerror = () => {
+      setError('Failed to read CSV file');
+    };
+    reader.readAsText(file);
   };
 
   const parseCSV = (csvText) => {
@@ -858,6 +874,9 @@ Return ONLY the JSON object above with your analysis results.`;
         setSelectedModel(sessionData.preferences.selectedModel);
       }
 
+      // Load partnerships data and set app as ready
+      await loadPartnerships();
+
       setRestoreStatus('success');
       setShowRestoreDialog(false);
       setTimeout(() => setRestoreStatus(null), 5000);
@@ -870,6 +889,246 @@ Return ONLY the JSON object above with your analysis results.`;
       setTimeout(() => setRestoreStatus(null), 5000);
     }
   };
+
+  // Welcome page component
+  const renderWelcomePage = () => (
+    <div style={{ 
+      minHeight: '100vh', 
+      backgroundColor: darkMode ? '#111827' : '#f8fafc', 
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
+      {/* Header with just logo and dark mode toggle */}
+      <div style={{
+        backgroundColor: darkMode ? '#1f2937' : 'white',
+        borderBottom: darkMode ? '1px solid #374151' : '1px solid #e2e8f0',
+        padding: '20px 0',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+      }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h1 style={{ 
+                margin: 0, 
+                fontSize: '28px', 
+                fontWeight: '700',
+                color: darkMode ? '#f8fafc' : '#1e293b'
+              }}>
+                🍪 Qookie
+              </h1>
+              <p style={{ 
+                margin: '4px 0 0 0', 
+                color: darkMode ? '#9ca3af' : '#64748b',
+                fontSize: '14px'
+              }}>
+                Quantum Computing Case Study Processor
+              </p>
+            </div>
+            
+            {/* Dark mode toggle */}
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              style={{
+                padding: '8px',
+                backgroundColor: 'transparent',
+                border: `2px solid ${darkMode ? '#4b5563' : '#d1d5db'}`,
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '18px',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              {darkMode ? '☀️' : '🌙'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Welcome content */}
+      <div style={{ 
+        flex: 1, 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        padding: '60px 20px'
+      }}>
+        <div style={{ 
+          maxWidth: '600px', 
+          textAlign: 'center',
+          backgroundColor: darkMode ? '#1f2937' : 'white',
+          borderRadius: '16px',
+          padding: '48px',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+          border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0'
+        }}>
+          <div style={{ fontSize: '64px', marginBottom: '24px' }}>⚛️</div>
+          
+          <h2 style={{
+            fontSize: '32px',
+            fontWeight: '700',
+            color: darkMode ? '#f8fafc' : '#1e293b',
+            marginBottom: '16px'
+          }}>
+            Welcome to Qookie
+          </h2>
+          
+          <p style={{
+            fontSize: '18px',
+            color: darkMode ? '#d1d5db' : '#4b5563',
+            marginBottom: '40px',
+            lineHeight: '1.6'
+          }}>
+            Generate comprehensive AI-powered case studies from quantum computing partnerships data.
+          </p>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
+            {/* CSV Import */}
+            <div>
+              <input
+                type="file"
+                accept=".csv"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    importCSVFile(file);
+                  }
+                }}
+                style={{ display: 'none' }}
+                id="csv-upload"
+              />
+              <label
+                htmlFor="csv-upload"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '16px 32px',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  textDecoration: 'none',
+                  transition: 'background-color 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#2563eb';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = '#3b82f6';
+                }}
+              >
+                📂 Import CSV File
+              </label>
+            </div>
+
+            {/* Divider */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              width: '100%',
+              margin: '8px 0'
+            }}>
+              <div style={{
+                flex: 1,
+                height: '1px',
+                backgroundColor: darkMode ? '#4b5563' : '#d1d5db'
+              }}></div>
+              <span style={{
+                padding: '0 16px',
+                fontSize: '14px',
+                color: darkMode ? '#6b7280' : '#9ca3af'
+              }}>
+                or
+              </span>
+              <div style={{
+                flex: 1,
+                height: '1px',
+                backgroundColor: darkMode ? '#4b5563' : '#d1d5db'
+              }}></div>
+            </div>
+
+            {/* Restore Session */}
+            <button
+              onClick={() => {
+                listAvailableBackups();
+                setShowRestoreDialog(true);
+              }}
+              disabled={restoreStatus === 'restoring'}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '16px 32px',
+                backgroundColor: restoreStatus === 'restoring' ? '#6b7280' : '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: restoreStatus === 'restoring' ? 'not-allowed' : 'pointer',
+                fontSize: '16px',
+                fontWeight: '600',
+                opacity: restoreStatus === 'restoring' ? 0.6 : 1,
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                if (restoreStatus !== 'restoring') {
+                  e.target.style.backgroundColor = '#059669';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (restoreStatus !== 'restoring') {
+                  e.target.style.backgroundColor = '#10b981';
+                }
+              }}
+            >
+              {restoreStatus === 'restoring' ? '🔄 Restoring...' : '📥 Restore Session'}
+            </button>
+          </div>
+
+          {/* Error display */}
+          {error && (
+            <div style={{
+              marginTop: '24px',
+              padding: '16px',
+              backgroundColor: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '8px',
+              color: '#dc2626',
+              fontSize: '14px'
+            }}>
+              {error}
+            </div>
+          )}
+
+          {/* Help text */}
+          <div style={{
+            marginTop: '32px',
+            padding: '16px',
+            backgroundColor: darkMode ? '#064e3b' : '#f0fdf4',
+            borderRadius: '8px',
+            border: darkMode ? '1px solid #10b981' : '1px solid #bbf7d0'
+          }}>
+            <p style={{
+              fontSize: '14px',
+              color: darkMode ? '#6ee7b7' : '#065f46',
+              margin: 0,
+              lineHeight: '1.5'
+            }}>
+              💡 <strong>Getting started:</strong> Import a CSV file with quantum partnership data, or restore a previous session from your GitHub backups.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Show welcome page if no data is loaded
+  if (!isDataLoaded) {
+    return renderWelcomePage();
+  }
 
   return (
     <div className={darkMode ? 'dark' : ''} style={{ 
