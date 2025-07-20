@@ -67,6 +67,14 @@ export const useCaseStudyStore = create(
 
           // Store the new case study
           get().setCaseStudy(partnershipId, data.caseStudy)
+          
+          // Extract and store basic metadata if it exists
+          if (data.caseStudy.metadata) {
+            // Import metadata store and set basic metadata
+            const { useMetadataStore } = await import('./useMetadataStore')
+            useMetadataStore.getState().setBasicMetadata(partnershipId, data.caseStudy.metadata)
+          }
+          
           set({ loading: false })
           
           console.log('✅ Case study generated and stored successfully')
@@ -118,6 +126,14 @@ export const useCaseStudyStore = create(
           } : data.caseStudy
 
           get().setCaseStudy(partnershipId, updatedCaseStudy)
+          
+          // Extract and store basic metadata if it exists
+          if (data.caseStudy.metadata) {
+            // Import metadata store and set basic metadata
+            const { useMetadataStore } = await import('./useMetadataStore')
+            useMetadataStore.getState().setBasicMetadata(partnershipId, data.caseStudy.metadata)
+          }
+          
           set({ loading: false })
           
           console.log('✅ Case study regenerated successfully')
