@@ -1146,933 +1146,155 @@ Return ONLY the JSON object above with your analysis results.`;
 
 
           {/* Right Column - Selected Partnership & Case Study */}
-          <div>
-            {!selectedPartnership ? (
-              <div style={{
-                backgroundColor: darkMode ? '#1f2937' : 'white',
-                borderRadius: '12px',
-                padding: '60px 40px',
-                textAlign: 'center',
+          <div style={{ display: 'grid', gap: '20px' }}>
+            
+            {/* Partnership Header */}
+            <div style={{ 
+              backgroundColor: darkMode ? '#1f2937' : 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0'
+            }}>
+              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#1e293b' }}>
+                {selectedPartnership ? `${selectedPartnership.company} + ${selectedPartnership.partner}` : 'Select a Partnership'}
+              </h2>
+              <p style={{ margin: '8px 0 0 0', color: darkMode ? '#9ca3af' : '#64748b' }}>
+                {selectedPartnership ? `Year: ${selectedPartnership.year || 'Unknown'}` : 'Choose from the list to generate a case study'}
+              </p>
+            </div>
+
+            {/* Case Study Container */}
+            <div style={{ 
+              backgroundColor: darkMode ? '#1f2937' : 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0'
+            }}>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#1e293b' }}>
+                📄 Case Study
+              </h3>
+              <div style={{ 
                 color: darkMode ? '#9ca3af' : '#64748b',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0'
+                padding: '20px',
+                textAlign: 'center',
+                backgroundColor: darkMode ? '#374151' : '#f8fafc',
+                borderRadius: '8px',
+                border: `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`
               }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>👈</div>
-                <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600' }}>
-                  Select a Partnership
-                </h3>
-                <p style={{ margin: 0, fontSize: '14px' }}>
-                  Choose a quantum computing partnership from the list to generate an AI-powered case study
-                </p>
+                {loading ? 'Generating case study...' : selectedPartnership ? 'Click "Generate Case Study" to create content' : 'Select a partnership to begin'}
               </div>
-            ) : (
+            </div>
+
+            {/* Metadata Container */}
+            <div style={{ 
+              backgroundColor: darkMode ? '#1f2937' : 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0'
+            }}>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#1e293b' }}>
+                🏷️ Metadata
+              </h3>
+              <div style={{ 
+                color: darkMode ? '#9ca3af' : '#64748b',
+                padding: '20px',
+                textAlign: 'center',
+                backgroundColor: darkMode ? '#374151' : '#f8fafc',
+                borderRadius: '8px',
+                border: `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`
+              }}>
+                Metadata will appear here after case study generation
+              </div>
+            </div>
+
+            {/* Advanced Metadata Container */}
+            <div style={{ 
+              backgroundColor: darkMode ? '#1f2937' : 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0'
+            }}>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#1e293b' }}>
+                🔬 Advanced Metadata
+              </h3>
+              <div style={{ 
+                color: darkMode ? '#9ca3af' : '#64748b',
+                padding: '20px',
+                textAlign: 'center',
+                backgroundColor: darkMode ? '#374151' : '#f8fafc',
+                borderRadius: '8px',
+                border: `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`
+              }}>
+                Advanced analysis will appear here after using "Analyze Case Study"
+              </div>
+            </div>
+
+            {/* References Container */}
+            <div style={{ 
+              backgroundColor: darkMode ? '#1f2937' : 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0'
+            }}>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#1e293b' }}>
+                📚 References
+              </h3>
+              <div style={{ 
+                color: darkMode ? '#9ca3af' : '#64748b',
+                padding: '20px',
+                textAlign: 'center',
+                backgroundColor: darkMode ? '#374151' : '#f8fafc',
+                borderRadius: '8px',
+                border: `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`
+              }}>
+                Academic references will appear here after using "Collect References"
+              </div>
+            </div>
+
+            {/* Resources Container */}
+            <div style={{ 
+              backgroundColor: darkMode ? '#1f2937' : 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0'
+            }}>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#1e293b' }}>
+                📰 Resources
+              </h3>
+              <div style={{ 
+                color: darkMode ? '#9ca3af' : '#64748b',
+                padding: '20px',
+                textAlign: 'center',
+                backgroundColor: darkMode ? '#374151' : '#f8fafc',
+                borderRadius: '8px',
+                border: `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`
+              }}>
+                Additional resources and further reading will appear here
+              </div>
+            </div>
+            
+            {/* Case Study Container */}
+            {selectedPartnership && (
               <div style={{ 
                 backgroundColor: darkMode ? '#1f2937' : 'white',
                 borderRadius: '12px',
-                padding: '0',
+                padding: '24px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0',
-                overflow: 'hidden'
+                border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0'
               }}>
-                {/* Partnership Header */}
-                <div style={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: 'white',
-                  padding: '32px 32px 24px 32px'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
-                    <div>
-                      <h1 style={{ 
-                        margin: '0 0 8px 0', 
-                        fontSize: '28px', 
-                        fontWeight: '700',
-                        lineHeight: '1.2'
-                      }}>
-                        {selectedPartnership?.company || 'Unknown Company'}
-                      </h1>
-                      <div style={{ 
-                        fontSize: '20px', 
-                        fontWeight: '500',
-                        opacity: '0.9'
-                      }}>
-                        Partnership with {selectedPartnership?.partner || 'Unknown Partner'}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>
-                        {selectedPartnership?.year || 'Unknown Year'}
-                      </div>
-                      <div style={{ 
-                        fontSize: '12px', 
-                        opacity: '0.7',
-                        padding: '2px 6px',
-                        backgroundColor: 'rgba(255,255,255,0.15)',
-                        borderRadius: '3px',
-                        display: 'inline-block'
-                      }}>
-                        {selectedModel.includes('opus-4') ? '4 Opus' :
-                         selectedModel.includes('sonnet-4') ? '4 Sonnet' :
-                         selectedModel.includes('3-5-sonnet') ? '3.5 Sonnet' :
-                         selectedModel.includes('3-5-haiku') ? '3.5 Haiku' :
-                         selectedModel.includes('3-opus') ? '3 Opus' :
-                         selectedModel.includes('3-sonnet') ? '3 Sonnet' :
-                         selectedModel.includes('3-haiku') ? '3 Haiku' : '4 Sonnet'}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Action Buttons */}
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <button 
-                      onClick={() => generateCaseStudy(selectedPartnership)}
-                      disabled={loading}
-                      style={{
-                        padding: '12px 24px',
-                        backgroundColor: loading ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.2)',
-                        color: 'white',
-                        border: '1px solid rgba(255,255,255,0.3)',
-                        borderRadius: '8px',
-                        cursor: loading ? 'not-allowed' : 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '600',
-                        backdropFilter: 'blur(10px)'
-                      }}
-                    >
-                      {loading ? 'Generating...' : '🔬 Generate Case Study'}
-                    </button>
-
-                    {/* Regenerate button */}
-                    {caseStudy && !loading && (
-                      <button 
-                        onClick={() => generateCaseStudy(selectedPartnership, true)}
-                        style={{
-                          padding: '12px 18px',
-                          backgroundColor: 'rgba(245, 158, 11, 0.9)',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          fontSize: '14px',
-                          fontWeight: '600'
-                        }}
-                      >
-                        🔄 Regenerate
-                      </button>
-                    )}
-
-                    {/* Analyze button */}
-                    <button 
-                      onClick={() => analyzeCaseStudy(selectedPartnership, caseStudy)}
-                      disabled={!caseStudy || loading || analyzing || collectingReferences}
-                      style={{
-                        padding: '12px 18px',
-                        backgroundColor: !caseStudy || loading || analyzing || collectingReferences
-                          ? 'rgba(255,255,255,0.2)' 
-                          : caseStudy?.advancedMetadata?._analyzed 
-                            ? 'rgba(124, 58, 237, 0.9)' 
-                            : 'rgba(5, 150, 105, 0.9)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: !caseStudy || loading || analyzing || collectingReferences ? 'not-allowed' : 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '600',
-                        opacity: !caseStudy || loading || analyzing || collectingReferences ? 0.6 : 1
-                      }}
-                    >
-                      {analyzing ? (
-                        '🔍 Analyzing...'
-                      ) : caseStudy?.advancedMetadata?._analyzed ? (
-                        '✅ Re-analyze'
-                      ) : (
-                        '🔍 Analyze Case Study'
-                      )}
-                    </button>
-
-                    {/* Collect References button */}
-                    <button 
-                      onClick={() => collectReferences(selectedPartnership, caseStudy)}
-                      disabled={!caseStudy || loading || analyzing || collectingReferences}
-                      style={{
-                        padding: '12px 18px',
-                        backgroundColor: !caseStudy || loading || analyzing || collectingReferences
-                          ? 'rgba(255,255,255,0.2)' 
-                          : caseStudy?._referencesCollected 
-                            ? 'rgba(168, 85, 247, 0.9)' 
-                            : 'rgba(217, 119, 6, 0.9)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: !caseStudy || loading || analyzing || collectingReferences ? 'not-allowed' : 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '600',
-                        opacity: !caseStudy || loading || analyzing || collectingReferences ? 0.6 : 1
-                      }}
-                    >
-                      {collectingReferences ? (
-                        '📚 Collecting...'
-                      ) : caseStudy?._referencesCollected ? (
-                        '✅ Re-collect'
-                      ) : (
-                        '📚 Collect References'
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Content Area */}
-                <div style={{ padding: '32px' }}>
-                  {/* Loading State */}
-                  {loading && (
-                    <div style={{ 
-                      textAlign: 'center',
-                      padding: '60px 40px'
-                    }}>
-                      <div style={{ fontSize: '24px', marginBottom: '16px' }}>🔬</div>
-                      <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#1e293b' }}>
-                        Researching Partnership
-                      </h3>
-                      <p style={{ margin: 0, color: darkMode ? '#9ca3af' : '#64748b', fontSize: '14px' }}>
-                        Claude AI is analyzing the partnership and generating a comprehensive case study...
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Error Display */}
-                  {error && (
-                    <div style={{ 
-                      backgroundColor: darkMode ? '#7f1d1d' : '#fef2f2',
-                      borderRadius: '8px',
-                      padding: '24px',
-                      border: '1px solid #fecaca',
-                      marginBottom: '24px'
-                    }}>
-                      <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', fontWeight: '600', color: darkMode ? '#fca5a5' : '#dc2626' }}>
-                        Generation Failed
-                      </h3>
-                      <p style={{ margin: 0, color: darkMode ? '#fca5a5' : '#7f1d1d', fontSize: '14px' }}>
-                        {error}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Case Study Content - Only show when partnership is selected */}
-                  {selectedPartnership && (
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
-                    <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#1e293b' }}>
-                      📄 Case Study
-                    </h2>
-                        
-                    {caseStudy && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        {/* Export button */}
-                        <button
-                            onClick={() => exportToMarkdown(selectedPartnership, caseStudy)}
-                            style={{
-                              padding: '8px 16px',
-                              backgroundColor: '#059669',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '6px',
-                              cursor: 'pointer',
-                              fontSize: '14px',
-                              fontWeight: '500',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.target.style.backgroundColor = '#047857';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.target.style.backgroundColor = '#059669';
-                            }}
-                          >
-                            📄 Export Markdown
-                          </button>
-
-                          {/* Push to GitHub button */}
-                          <button
-                            onClick={() => pushToGitHub(selectedPartnership, caseStudy)}
-                            disabled={githubPushing}
-                            style={{
-                              padding: '8px 16px',
-                              backgroundColor: githubPushing ? '#6b7280' : 
-                                             githubStatus === 'success' ? '#10b981' :
-                                             githubStatus === 'error' ? '#ef4444' : '#3b82f6',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '6px',
-                              cursor: githubPushing ? 'not-allowed' : 'pointer',
-                              fontSize: '14px',
-                              fontWeight: '500',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              transition: 'background-color 0.2s'
-                            }}
-                            onMouseEnter={(e) => {
-                              if (!githubPushing) {
-                                if (githubStatus === 'success') {
-                                  e.target.style.backgroundColor = '#059669';
-                                } else if (githubStatus === 'error') {
-                                  e.target.style.backgroundColor = '#dc2626';
-                                } else {
-                                  e.target.style.backgroundColor = '#2563eb';
-                                }
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (!githubPushing) {
-                                if (githubStatus === 'success') {
-                                  e.target.style.backgroundColor = '#10b981';
-                                } else if (githubStatus === 'error') {
-                                  e.target.style.backgroundColor = '#ef4444';
-                                } else {
-                                  e.target.style.backgroundColor = '#3b82f6';
-                                }
-                              }
-                            }}
-                          >
-                            {githubPushing ? '⏳ Pushing...' : 
-                             githubStatus === 'success' ? '✅ Pushed to GitHub' :
-                             githubStatus === 'error' ? '❌ Push Failed' : '🚀 Push to GitHub'}
-                          </button>
-
-                          {/* Cache status indicator */}
-                          {caseStudy && caseStudy._cached && (
-                            <div style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '8px',
-                              backgroundColor: darkMode ? '#064e3b' : '#ecfdf5',
-                              border: '1px solid #bbf7d0',
-                              borderRadius: '6px',
-                              padding: '6px 12px',
-                              fontSize: '12px',
-                              color: darkMode ? '#6ee7b7' : '#065f46'
-                            }}>
-                              <span>💾</span>
-                              <span style={{ fontWeight: '500' }}>
-                                Cached {new Date(caseStudy._cachedAt).toLocaleDateString()}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                
-                    {/* Case Study Title and Content - Always show structure */}
-                    {caseStudy ? (
-                      <h3 style={{ fontSize: '22px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#1e293b', marginBottom: '24px' }}>
-                        {caseStudy.title}
-                      </h3>
-                    ) : (
-                      <h3 style={{ fontSize: '22px', fontWeight: '600', color: darkMode ? '#9ca3af' : '#64748b', marginBottom: '24px' }}>
-                        {loading ? 'Generating case study...' : 'Case study will appear here'}
-                      </h3>
-                    )}
-                
-                {/* Executive Summary - Always show */}
-                <div style={{ marginBottom: '32px' }}>
-                  <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
-                    📋 Executive Summary
-                  </h4>
-                  {caseStudy?.summary ? (
-                    <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
-                      {caseStudy.summary}
-                    </p>
-                  ) : (
-                    <div style={{ 
-                      color: darkMode ? '#6b7280' : '#9ca3af', 
-                      lineHeight: '1.7', 
-                      fontSize: '15px', 
-                      margin: 0,
-                      fontStyle: 'italic',
-                      padding: '16px',
-                      backgroundColor: darkMode ? '#374151' : '#f8fafc',
-                      borderRadius: '6px',
-                      border: `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`
-                    }}>
-                      {loading ? 'Generating executive summary...' : 'Executive summary will appear here'}
-                    </div>
-                  )}
-                </div>
-
-                {/* Introduction - Always show */}
-                <div style={{ marginBottom: '32px' }}>
-                  <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
-                    🚀 Introduction
-                  </h4>
-                  {caseStudy?.introduction ? (
-                    <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
-                      {caseStudy.introduction}
-                    </p>
-                  ) : (
-                    <div style={{ 
-                      color: darkMode ? '#6b7280' : '#9ca3af', 
-                      lineHeight: '1.7', 
-                      fontSize: '15px', 
-                      margin: 0,
-                      fontStyle: 'italic',
-                      padding: '16px',
-                      backgroundColor: darkMode ? '#374151' : '#f8fafc',
-                      borderRadius: '6px',
-                      border: `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`
-                    }}>
-                      {loading ? 'Generating introduction...' : 'Introduction will appear here'}
-                    </div>
-                  )}
-                </div>
-
-                {/* Challenge - Always show */}
-                <div style={{ marginBottom: '32px' }}>
-                  <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
-                    ⚡ Challenge
-                  </h4>
-                  {caseStudy?.challenge ? (
-                    <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
-                      {caseStudy.challenge}
-                    </p>
-                  ) : (
-                    <div style={{ 
-                      color: darkMode ? '#6b7280' : '#9ca3af', 
-                      lineHeight: '1.7', 
-                      fontSize: '15px', 
-                      margin: 0,
-                      fontStyle: 'italic',
-                      padding: '16px',
-                      backgroundColor: darkMode ? '#374151' : '#f8fafc',
-                      borderRadius: '6px',
-                      border: `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`
-                    }}>
-                      {loading ? 'Generating challenge description...' : 'Challenge description will appear here'}
-                    </div>
-                  )}
-                </div>
-
-                {/* Solution - Always show */}
-                <div style={{ marginBottom: '32px' }}>
-                  <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
-                    💡 Solution
-                  </h4>
-                  {caseStudy?.solution ? (
-                    <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
-                      {caseStudy.solution}
-                    </p>
-                  ) : (
-                    <div style={{ 
-                      color: darkMode ? '#6b7280' : '#9ca3af', 
-                      lineHeight: '1.7', 
-                      fontSize: '15px', 
-                      margin: 0,
-                      fontStyle: 'italic',
-                      padding: '16px',
-                      backgroundColor: darkMode ? '#374151' : '#f8fafc',
-                      borderRadius: '6px',
-                      border: `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`
-                    }}>
-                      {loading ? 'Generating solution description...' : 'Solution description will appear here'}
-                    </div>
-                  )}
-                </div>
-
-                {/* Implementation - Always show */}
-                <div style={{ marginBottom: '32px' }}>
-                  <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
-                    ⚙️ Implementation
-                  </h4>
-                  {caseStudy?.implementation ? (
-                    <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
-                      {caseStudy.implementation}
-                    </p>
-                  ) : (
-                    <div style={{ 
-                      color: darkMode ? '#6b7280' : '#9ca3af', 
-                      lineHeight: '1.7', 
-                      fontSize: '15px', 
-                      margin: 0,
-                      fontStyle: 'italic',
-                      padding: '16px',
-                      backgroundColor: darkMode ? '#374151' : '#f8fafc',
-                      borderRadius: '6px',
-                      border: `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`
-                    }}>
-                      {loading ? 'Generating implementation details...' : 'Implementation details will appear here'}
-                    </div>
-                  )}
-                </div>
-
-                {/* Results & Business Impact - Always show */}
-                <div style={{ marginBottom: '32px' }}>
-                  <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
-                    📊 Results & Business Impact
-                  </h4>
-                  {caseStudy?.results_and_business_impact ? (
-                    <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
-                      {caseStudy.results_and_business_impact}
-                    </p>
-                  ) : (
-                    <div style={{ 
-                      color: darkMode ? '#6b7280' : '#9ca3af', 
-                      lineHeight: '1.7', 
-                      fontSize: '15px', 
-                      margin: 0,
-                      fontStyle: 'italic',
-                      padding: '16px',
-                      backgroundColor: darkMode ? '#374151' : '#f8fafc',
-                      borderRadius: '6px',
-                      border: `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`
-                    }}>
-                      {loading ? 'Generating results and business impact...' : 'Results and business impact will appear here'}
-                    </div>
-                  )}
-                </div>
-
-                {/* Future Directions - Always show */}
-                <div style={{ marginBottom: '32px' }}>
-                  <h4 style={{ fontSize: '18px', fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '12px' }}>
-                    🔮 Future Directions
-                  </h4>
-                  {caseStudy?.future_directions ? (
-                    <p style={{ color: darkMode ? '#f3f4f6' : '#1f2937', lineHeight: '1.7', fontSize: '15px', margin: 0 }}>
-                      {caseStudy.future_directions}
-                    </p>
-                  ) : (
-                    <div style={{ 
-                      color: darkMode ? '#6b7280' : '#9ca3af', 
-                      lineHeight: '1.7', 
-                      fontSize: '15px', 
-                      margin: 0,
-                      fontStyle: 'italic',
-                      padding: '16px',
-                      backgroundColor: darkMode ? '#374151' : '#f8fafc',
-                      borderRadius: '6px',
-                      border: `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`
-                    }}>
-                      {loading ? 'Generating future directions...' : 'Future directions will appear here'}
-                    </div>
-                  )}
-                </div>
-                
-                {/* Original Metadata - Always show */}
                 <div style={{ 
-                  marginTop: '40px', 
-                  padding: '24px', 
-                  backgroundColor: darkMode ? '#374151' : '#f8fafc', 
-                  borderRadius: '8px',
-                  border: '1px solid #e2e8f0',
-                  opacity: caseStudy?.metadata ? 1 : 0.6
+                  color: darkMode ? '#9ca3af' : '#64748b',
+                  padding: '40px',
+                  textAlign: 'center',
+                  fontSize: '16px'
                 }}>
-                    <h4 style={{ 
-                      fontSize: '18px', 
-                      fontWeight: '600',
-                      color: darkMode ? '#d1d5db' : '#374151',
-                      marginBottom: '16px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}>
-                      🏷️ Metadata
-                      <span style={{
-                        backgroundColor: '#6b7280',
-                        color: 'white',
-                        fontSize: '10px',
-                        padding: '2px 6px',
-                        borderRadius: '3px',
-                        fontWeight: '500'
-                      }}>
-                        ORIGINAL
-                      </span>
-                    </h4>
-                    
-                  <div style={{ display: 'grid', gap: '12px' }}>
-                    <div>
-                      <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Algorithms: </span>
-                      <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
-                        {caseStudy?.metadata?.algorithms && caseStudy.metadata.algorithms.length > 0 
-                          ? caseStudy.metadata.algorithms.join(', ') 
-                          : loading ? 'Analyzing algorithms...' : 'Will be identified during generation'}
-                      </span>
-                    </div>
-                    <div>
-                      <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Industries: </span>
-                      <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
-                        {caseStudy?.metadata?.industries && caseStudy.metadata.industries.length > 0 
-                          ? caseStudy.metadata.industries.join(', ') 
-                          : loading ? 'Identifying industries...' : 'Will be identified during generation'}
-                      </span>
-                    </div>
-                    <div>
-                      <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Target Personas: </span>
-                      <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
-                        {caseStudy?.metadata?.personas && caseStudy.metadata.personas.length > 0 
-                          ? caseStudy.metadata.personas.join(', ') 
-                          : loading ? 'Identifying personas...' : 'Will be identified during generation'}
-                      </span>
-                    </div>
-                    <div>
-                      <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Confidence Score: </span>
-                      <span style={{ 
-                        color: darkMode ? '#f3f4f6' : '#1f2937',
-                        backgroundColor: caseStudy?.metadata?.confidence_score ? '#dbeafe' : darkMode ? '#4b5563' : '#f1f5f9',
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        fontSize: '14px'
-                      }}>
-                        {caseStudy?.metadata?.confidence_score || (loading ? 'Calculating...' : 'Will be calculated')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Advanced Metadata - Always show */}
-                <div style={{ 
-                  marginTop: '20px', 
-                  padding: '24px', 
-                  backgroundColor: caseStudy?.advancedMetadata 
-                    ? (darkMode ? '#1e3a8a' : '#f0f9ff')
-                    : (darkMode ? '#374151' : '#f8fafc'), 
-                  borderRadius: '8px',
-                  border: caseStudy?.advancedMetadata 
-                    ? (darkMode ? '1px solid #3b82f6' : '1px solid #bae6fd')
-                    : `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`,
-                  opacity: caseStudy?.advancedMetadata ? 1 : 0.6
-                }}>
-                    <h4 style={{ 
-                      fontSize: '18px', 
-                      fontWeight: '600',
-                      color: darkMode ? '#d1d5db' : '#374151',
-                      marginBottom: '16px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}>
-                      🔬 Advanced Metadata
-                      <span style={{
-                        backgroundColor: caseStudy?.advancedMetadata 
-                          ? '#10b981' 
-                          : analyzing ? '#f59e0b' : '#6b7280',
-                        color: 'white',
-                        fontSize: '10px',
-                        padding: '2px 6px',
-                        borderRadius: '3px',
-                        fontWeight: '500'
-                      }}>
-                        {caseStudy?.advancedMetadata ? 'ANALYZED' : analyzing ? 'ANALYZING' : 'PENDING ANALYSIS'}
-                      </span>
-                    </h4>
-                    
-                    <div style={{ display: 'grid', gap: '12px' }}>
-                      <div>
-                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Algorithms: </span>
-                        <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
-                          {caseStudy?.advancedMetadata?.algorithms && caseStudy.advancedMetadata.algorithms.length > 0 
-                            ? caseStudy.advancedMetadata.algorithms.join(', ') 
-                            : analyzing ? 'Analyzing algorithms...' : 'Click "Analyze Case Study" to get advanced insights'}
-                        </span>
-                      </div>
-                      <div>
-                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Industries: </span>
-                        <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
-                          {caseStudy?.advancedMetadata?.industries && caseStudy.advancedMetadata.industries.length > 0 
-                            ? caseStudy.advancedMetadata.industries.join(', ') 
-                            : analyzing ? 'Analyzing industries...' : 'Advanced industry analysis pending'}
-                        </span>
-                      </div>
-                      <div>
-                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Target Personas: </span>
-                        <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>
-                          {caseStudy?.advancedMetadata?.personas && caseStudy.advancedMetadata.personas.length > 0 
-                            ? caseStudy.advancedMetadata.personas.join(', ') 
-                            : analyzing ? 'Analyzing personas...' : 'Persona analysis pending'}
-                        </span>
-                      </div>
-                      <div>
-                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Confidence Score: </span>
-                        <span style={{ 
-                          color: darkMode ? '#f3f4f6' : '#1f2937',
-                          backgroundColor: caseStudy?.advancedMetadata?.confidence_score ? '#dbeafe' : darkMode ? '#4b5563' : '#f1f5f9',
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          fontSize: '14px'
-                        }}>
-                          {caseStudy?.advancedMetadata?.confidence_score || (analyzing ? 'Calculating...' : 'Advanced scoring pending')}
-                        </span>
-                      </div>
-                      <div>
-                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Analysis Notes: </span>
-                        <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937', fontStyle: 'italic' }}>
-                          {caseStudy?.advancedMetadata?.analysis_notes || (analyzing ? 'Generating analysis notes...' : 'Analysis notes will appear here')}
-                        </span>
-                      </div>
-                      <div>
-                        <span style={{ fontWeight: '600', color: darkMode ? '#d1d5db' : '#374151' }}>Analyzed: </span>
-                        <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937', fontSize: '14px' }}>
-                          {caseStudy?.advancedMetadata?._analyzedAt 
-                            ? new Date(caseStudy.advancedMetadata._analyzedAt).toLocaleString()
-                            : analyzing ? 'Analysis in progress...' : 'Not yet analyzed'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* References Section - Always show */}
-                  <div style={{ 
-                    marginTop: '20px', 
-                    padding: '24px', 
-                    backgroundColor: (caseStudy?.references && caseStudy.references.length > 0)
-                      ? (darkMode ? '#451a03' : '#fefce8')
-                      : (darkMode ? '#374151' : '#f8fafc'), 
-                    borderRadius: '8px',
-                    border: (caseStudy?.references && caseStudy.references.length > 0)
-                      ? '1px solid #fde047'
-                      : `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`,
-                    opacity: (caseStudy?.references && caseStudy.references.length > 0) ? 1 : 0.6
-                  }}>
-                      <h4 style={{ 
-                        fontSize: '18px', 
-                        fontWeight: '600',
-                        color: darkMode ? '#d1d5db' : '#374151',
-                        marginBottom: '16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}>
-                        📚 References
-                        <span style={{
-                          backgroundColor: (caseStudy?.references && caseStudy.references.length > 0) 
-                            ? '#f59e0b' 
-                            : collectingReferences ? '#3b82f6' : '#6b7280',
-                          color: 'white',
-                          fontSize: '10px',
-                          padding: '2px 6px',
-                          borderRadius: '3px',
-                          fontWeight: '500'
-                        }}>
-                          {(caseStudy?.references && caseStudy.references.length > 0) 
-                            ? 'ACADEMIC' 
-                            : collectingReferences ? 'COLLECTING' : 'PENDING'}
-                        </span>
-                      </h4>
-                      
-                      {(caseStudy?.references && caseStudy.references.length > 0) ? (
-                        <div style={{ display: 'grid', gap: '16px' }}>
-                          {caseStudy.references.map((ref, index) => (
-                          <div key={index} style={{ 
-                            padding: '16px',
-                            backgroundColor: darkMode ? '#374151' : 'white',
-                            borderRadius: '6px',
-                            border: '1px solid #fed7aa'
-                          }}>
-                            <div style={{ fontWeight: '600', color: darkMode ? '#f3f4f6' : '#1f2937', marginBottom: '8px' }}>
-                              {ref.title}
-                            </div>
-                            <div style={{ fontSize: '14px', color: darkMode ? '#9ca3af' : '#6b7280', marginBottom: '8px' }}>
-                              {ref.authors && ref.authors.join(', ')} ({ref.year})
-                            </div>
-                            <div style={{ fontSize: '13px', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '8px', fontStyle: 'italic' }}>
-                              {ref.journal}
-                            </div>
-                            {ref.relevance_note && (
-                              <div style={{ 
-                                fontSize: '12px', 
-                                color: darkMode ? '#6ee7b7' : '#065f46',
-                                backgroundColor: darkMode ? '#064e3b' : '#ecfdf5',
-                                padding: '8px',
-                                borderRadius: '4px',
-                                marginBottom: '8px',
-                                border: '1px solid #bbf7d0'
-                              }}>
-                                <strong>Relevance:</strong> {ref.relevance_note}
-                              </div>
-                            )}
-                            {ref.citation && (
-                              <div style={{ 
-                                fontSize: '12px', 
-                                color: '#4b5563',
-                                backgroundColor: '#f9fafb',
-                                padding: '8px',
-                                borderRadius: '4px',
-                                fontFamily: 'monospace'
-                              }}>
-                                {ref.citation}
-                              </div>
-                            )}
-                            {ref.url && (
-                              <div style={{ marginTop: '8px' }}>
-                                <a href={ref.url} target="_blank" rel="noopener noreferrer" style={{
-                                  color: '#3b82f6',
-                                  textDecoration: 'none',
-                                  fontSize: '12px'
-                                }}>
-                                  🔗 View Source
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div style={{ 
-                          color: darkMode ? '#6b7280' : '#9ca3af', 
-                          lineHeight: '1.7', 
-                          fontSize: '15px', 
-                          margin: 0,
-                          fontStyle: 'italic',
-                          padding: '16px',
-                          backgroundColor: darkMode ? '#4b5563' : '#f1f5f9',
-                          borderRadius: '6px',
-                          border: `1px dashed ${darkMode ? '#6b7280' : '#cbd5e1'}`,
-                          textAlign: 'center'
-                        }}>
-                          {collectingReferences ? 'Searching for relevant scientific papers...' : 'Click "Collect References" to gather academic sources'}
-                        </div>
-                      )}
-                    </div>
-
-                  {/* Further Reading Section - Always show */}
-                  <div style={{ 
-                    marginTop: '20px', 
-                    padding: '24px', 
-                    backgroundColor: (caseStudy?.furtherReading && caseStudy.furtherReading.length > 0)
-                      ? (darkMode ? '#064e3b' : '#f0fdf4')
-                      : (darkMode ? '#374151' : '#f8fafc'), 
-                    borderRadius: '8px',
-                    border: (caseStudy?.furtherReading && caseStudy.furtherReading.length > 0)
-                      ? '1px solid #bbf7d0'
-                      : `1px dashed ${darkMode ? '#4b5563' : '#cbd5e1'}`,
-                    opacity: (caseStudy?.furtherReading && caseStudy.furtherReading.length > 0) ? 1 : 0.6
-                  }}>
-                      <h4 style={{ 
-                        fontSize: '18px', 
-                        fontWeight: '600',
-                        color: darkMode ? '#d1d5db' : '#374151',
-                        marginBottom: '16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}>
-                        📰 Further Reading
-                        <span style={{
-                          backgroundColor: (caseStudy?.furtherReading && caseStudy.furtherReading.length > 0) 
-                            ? '#059669' 
-                            : collectingReferences ? '#3b82f6' : '#6b7280',
-                          color: 'white',
-                          fontSize: '10px',
-                          padding: '2px 6px',
-                          borderRadius: '3px',
-                          fontWeight: '500'
-                        }}>
-                          {(caseStudy?.furtherReading && caseStudy.furtherReading.length > 0) 
-                            ? 'BUSINESS' 
-                            : collectingReferences ? 'COLLECTING' : 'PENDING'}
-                        </span>
-                      </h4>
-                      
-                      {(caseStudy?.furtherReading && caseStudy.furtherReading.length > 0) ? (
-                        <div style={{ display: 'grid', gap: '16px' }}>
-                          {caseStudy.furtherReading.map((item, index) => (
-                          <div key={index} style={{ 
-                            padding: '16px',
-                            backgroundColor: darkMode ? '#374151' : 'white',
-                            borderRadius: '6px',
-                            border: '1px solid #bbf7d0'
-                          }}>
-                            <div style={{ fontWeight: '600', color: darkMode ? '#f3f4f6' : '#1f2937', marginBottom: '8px' }}>
-                              {item.title}
-                            </div>
-                            <div style={{ fontSize: '14px', color: darkMode ? '#9ca3af' : '#6b7280', marginBottom: '8px' }}>
-                              {item.source} • {item.date}
-                            </div>
-                            {item.description && (
-                              <div style={{ fontSize: '13px', color: darkMode ? '#d1d5db' : '#374151', marginBottom: '8px' }}>
-                                {item.description}
-                              </div>
-                            )}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                              <span style={{
-                                backgroundColor: item.type === 'blog_post' ? '#3b82f6' : 
-                                               item.type === 'press_release' ? '#8b5cf6' : 
-                                               item.type === 'news' ? '#ef4444' : '#6b7280',
-                                color: 'white',
-                                fontSize: '10px',
-                                padding: '2px 6px',
-                                borderRadius: '3px',
-                                fontWeight: '500'
-                              }}>
-                                {item.type?.replace('_', ' ').toUpperCase() || 'ARTICLE'}
-                              </span>
-                              {item.url && (
-                                <a href={item.url} target="_blank" rel="noopener noreferrer" style={{
-                                  color: '#3b82f6',
-                                  textDecoration: 'none',
-                                  fontSize: '12px'
-                                }}>
-                                  🔗 Read More
-                                </a>
-                              )}
-                            </div>
-                          </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div style={{ 
-                          color: darkMode ? '#6b7280' : '#9ca3af', 
-                          lineHeight: '1.7', 
-                          fontSize: '15px', 
-                          margin: 0,
-                          fontStyle: 'italic',
-                          padding: '16px',
-                          backgroundColor: darkMode ? '#4b5563' : '#f1f5f9',
-                          borderRadius: '6px',
-                          border: `1px dashed ${darkMode ? '#6b7280' : '#cbd5e1'}`,
-                          textAlign: 'center'
-                        }}>
-                          {collectingReferences ? 'Searching for business articles and news...' : 'Further reading materials will be collected with references'}
-                        </div>
-                      )}
-                    </div>
-
-                  {/* Collection Notes */}
-                  {caseStudy.collectionNotes && (
-                    <div style={{ 
-                      marginTop: '20px', 
-                      padding: '16px', 
-                      backgroundColor: darkMode ? '#374151' : '#f8fafc', 
-                      borderRadius: '8px',
-                      border: '1px solid #e2e8f0'
-                    }}>
-                      <h5 style={{ 
-                        fontSize: '14px', 
-                        fontWeight: '600',
-                        color: darkMode ? '#d1d5db' : '#374151',
-                        marginBottom: '8px'
-                      }}>
-                        📝 Collection Notes
-                      </h5>
-                      <p style={{ 
-                        fontSize: '13px', 
-                        color: darkMode ? '#9ca3af' : '#6b7280',
-                        margin: 0,
-                        fontStyle: 'italic'
-                      }}>
-                        {caseStudy.collectionNotes}
-                      </p>
-                      {caseStudy._referencesCollectedAt && (
-                        <p style={{ 
-                          fontSize: '12px', 
-                          color: '#9ca3af',
-                          margin: '8px 0 0 0'
-                        }}>
-                          Collected: {new Date(caseStudy._referencesCollectedAt).toLocaleString()}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                    </div>
-                  )}
+                  Case study content will be displayed here
                 </div>
               </div>
             )}
