@@ -1316,9 +1316,10 @@ Return ONLY the JSON object above with your analysis results.`;
                     </div>
                   )}
 
-                  {/* Case Study Content */}
-                  {/* Always show case study structure when partnership is selected */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
+                  {/* Case Study Content - Only show when partnership is selected */}
+                  {selectedPartnership && (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
                     <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#1e293b' }}>
                       📄 Case Study
                     </h2>
@@ -2028,6 +2029,8 @@ Return ONLY the JSON object above with your analysis results.`;
                           Collected: {new Date(caseStudy._referencesCollectedAt).toLocaleString()}
                         </p>
                       )}
+                    </div>
+                  )}
                     </div>
                   )}
                 </div>
