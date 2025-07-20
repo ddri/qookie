@@ -94,6 +94,20 @@ function App() {
     reader.readAsText(file);
   };
 
+  // Standard data normalization - ensures consistent partnership object structure
+  const normalizePartnership = (rawData, index = 0) => {
+    return {
+      id: rawData.id !== undefined && rawData.id !== '' ? parseInt(rawData.id) : index + 1,
+      company: rawData.company || rawData.quantum_company || '',
+      partner: rawData.partner || rawData.commercial_partner || '',
+      year: rawData.year || '',
+      notes: rawData.notes || '',
+      // Keep original field names for backward compatibility
+      quantum_company: rawData.company || rawData.quantum_company || '',
+      commercial_partner: rawData.partner || rawData.commercial_partner || ''
+    };
+  };
+
   const parseCSV = (csvText) => {
     const lines = csvText.trim().split('\n');
     const headers = lines[0].split(',').map(h => h.trim());
@@ -107,13 +121,8 @@ function App() {
         row[header] = cleanValues[i] || '';
       });
       
-      return {
-        id: row.id !== undefined && row.id !== '' ? parseInt(row.id) : index + 1,
-        company: row.quantum_company || '',
-        partner: row.commercial_partner || '',
-        year: row.year || '',
-        notes: row.notes || ''
-      };
+      // Use normalization function to ensure consistent structure
+      return normalizePartnership(row, index);
     }).filter(row => row.company && row.partner);
   };
 
@@ -455,12 +464,18 @@ ${caseStudy.collectionNotes}
   const analyzeCaseStudy = async (partnership, caseStudy) => {
     if (!caseStudy) return;
     
+    // Defensive programming: check if partnership exists
+    if (!partnership) {
+      console.error('Invalid partnership data for analysis:', partnership);
+      setError('Invalid partnership data. Cannot analyze case study.');
+      return;
+    }
     
     setAnalyzing(true);
     setError(null);
 
     try {
-      console.log('🔍 DEBUG: Starting analysis for:', partnership.quantum_company, '+', partnership.commercial_partner);
+      console.log('🔍 DEBUG: Starting analysis for:', partnership.company || partnership.quantum_company, '+', partnership.partner || partnership.commercial_partner);
       console.log('🔍 DEBUG: Reference lists state at analysis time:');
       console.log('- referenceLists object:', referenceLists);
       console.log('- Algorithms array exists?', Array.isArray(referenceLists.algorithms));
@@ -601,6 +616,13 @@ Return ONLY the JSON object above with your analysis results.`;
   };
 
   const generateCaseStudy = async (partnership, forceRegenerate = false) => {
+    // Defensive programming: check if partnership exists and has required properties
+    if (!partnership || !partnership.company || !partnership.partner) {
+      console.error('Invalid partnership data:', partnership);
+      setError('Invalid partnership data. Please select a valid partnership.');
+      return;
+    }
+
     // Check for cached version first
     if (!forceRegenerate) {
       const cachedCaseStudy = getCachedCaseStudy(partnership.id);
@@ -623,8 +645,8 @@ Return ONLY the JSON object above with your analysis results.`;
         body: JSON.stringify({
           company: partnership.company,
           partner: partnership.partner,
-          year: partnership.year,
-          notes: partnership.notes,
+          year: partnership.year || '',
+          notes: partnership.notes || '',
           model: selectedModel
         })
       });
@@ -1314,7 +1336,7 @@ Return ONLY the JSON object above with your analysis results.`;
                 return (
                 <div 
                   key={partnership.id}
-                  onClick={() => setSelectedPartnership(partnership)}
+                  onClick={() => setSelectedPartnership(normalizePartnership(partnership))}
                   style={{
                     padding: '12px 16px',
                     border: selectedPartnership && selectedPartnership.id === partnership.id 
@@ -1407,19 +1429,19 @@ Return ONLY the JSON object above with your analysis results.`;
                         fontWeight: '700',
                         lineHeight: '1.2'
                       }}>
-                        {selectedPartnership.company}
+                        {selectedPartnership?.company || 'Unknown Company'}
                       </h1>
                       <div style={{ 
                         fontSize: '20px', 
                         fontWeight: '500',
                         opacity: '0.9'
                       }}>
-                        Partnership with {selectedPartnership.partner}
+                        Partnership with {selectedPartnership?.partner || 'Unknown Partner'}
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>
-                        {selectedPartnership.year || 'Unknown Year'}
+                        {selectedPartnership?.year || 'Unknown Year'}
                       </div>
                       <div style={{ 
                         fontSize: '12px', 
