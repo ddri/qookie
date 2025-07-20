@@ -1,10 +1,23 @@
 import React, { useState, useEffect } from 'react';
+import { useCaseStudyStore } from './stores';
 
 function App() {
   const [partnerships, setPartnerships] = useState([]);
   const [selectedPartnership, setSelectedPartnership] = useState(null);
-  const [caseStudy, setCaseStudy] = useState(null);
-  const [loading, setLoading] = useState(false);
+  
+  // Zustand stores
+  const { 
+    getCaseStudy, 
+    generateCaseStudy, 
+    regenerateCaseStudy,
+    loading: caseStudyLoading, 
+    error: caseStudyError,
+    clearError: clearCaseStudyError
+  } = useCaseStudyStore();
+  
+  // Derived state
+  const caseStudy = selectedPartnership ? getCaseStudy(selectedPartnership.id) : null;
+  
   const [error, setError] = useState(null);
   const [researchHistory, setResearchHistory] = useState([]);
   const [exportStatus, setExportStatus] = useState(null); // 'success', 'error', or null
@@ -25,6 +38,9 @@ function App() {
   const [showFileConflictDialog, setShowFileConflictDialog] = useState(false);
   const [fileConflictData, setFileConflictData] = useState(null);
   const [darkMode, setDarkMode] = useState(true);
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchStep, setBatchStep] = useState(0); // 0=not running, 1=case study, 2=analysis, 3=references
+  const [batchError, setBatchError] = useState(null);
 
   // Load everything on startup - simple CMS pattern
   useEffect(() => {
@@ -51,19 +67,17 @@ function App() {
   };
 
   // Load cached case studies when partnership is selected
+  // Load cached case study when partnership changes
   useEffect(() => {
     if (selectedPartnership) {
       const cachedCaseStudy = getCachedCaseStudy(selectedPartnership.id);
-      if (cachedCaseStudy) {
-        setCaseStudy(cachedCaseStudy);
-        console.log('Loaded cached case study for partnership:', selectedPartnership.id);
-      } else {
-        setCaseStudy(null);
+      if (cachedCaseStudy && !getCaseStudy(selectedPartnership.id)) {
+        // Only load from cache if store doesn't already have it
+        useCaseStudyStore.getState().setCaseStudy(selectedPartnership.id, cachedCaseStudy);
+        console.log('Loaded cached case study into store for partnership:', selectedPartnership.id);
       }
-    } else {
-      setCaseStudy(null);
     }
-  }, [selectedPartnership]);
+  }, [selectedPartnership, getCaseStudy]);
 
   const loadPartnerships = async (csvText = null) => {
     try {
@@ -446,9 +460,9 @@ ${caseStudy.collectionNotes}
       console.log('Enhanced case study references:', enhancedCaseStudy.references);
       console.log('Enhanced case study furtherReading:', enhancedCaseStudy.furtherReading);
 
-      // Save enhanced case study to cache
+      // Save enhanced case study to cache and store
       saveCaseStudyToCache(partnership.id, enhancedCaseStudy);
-      setCaseStudy(enhancedCaseStudy);
+      useCaseStudyStore.getState().setCaseStudy(partnership.id, enhancedCaseStudy);
 
       console.log('References and further reading collection completed successfully');
 
@@ -600,9 +614,9 @@ Return ONLY the JSON object above with your analysis results.`;
         }
       };
 
-      // Save enhanced case study to cache
+      // Save enhanced case study to cache and store
       saveCaseStudyToCache(partnership.id, enhancedCaseStudy);
-      setCaseStudy(enhancedCaseStudy);
+      useCaseStudyStore.getState().setCaseStudy(partnership.id, enhancedCaseStudy);
 
       console.log('Case study analysis completed successfully');
 
@@ -614,7 +628,8 @@ Return ONLY the JSON object above with your analysis results.`;
     }
   };
 
-  const generateCaseStudy = async (partnership, forceRegenerate = false) => {
+  // Wrapper function for the store's generateCaseStudy
+  const handleGenerateCaseStudy = async (partnership, forceRegenerate = false) => {
     // Defensive programming: check if partnership exists and has required properties
     if (!partnership || !partnership.company || !partnership.partner) {
       console.error('Invalid partnership data:', partnership);
@@ -622,52 +637,114 @@ Return ONLY the JSON object above with your analysis results.`;
       return;
     }
 
-    // Check for cached version first
-    if (!forceRegenerate) {
-      const cachedCaseStudy = getCachedCaseStudy(partnership.id);
-      if (cachedCaseStudy) {
-        setCaseStudy(cachedCaseStudy);
-        console.log('Using cached case study for:', partnership.id);
-        return;
-      }
-    }
-
-    setLoading(true);
-    setError(null);
-    setCaseStudy(null);
-
     try {
-      console.log('Generating case study for:', partnership, 'forceRegenerate:', forceRegenerate);
-      const response = await fetch('http://localhost:3002/api/research', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          company: partnership.company,
-          partner: partnership.partner,
-          year: partnership.year || '',
-          notes: partnership.notes || '',
-          model: selectedModel
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'API request failed');
-      }
-
-      // Save to cache
-      saveCaseStudyToCache(partnership.id, data.caseStudy);
+      clearCaseStudyError(); // Clear any previous errors
       
-      setCaseStudy(data.caseStudy);
-      console.log('Case study generated and cached successfully');
-
+      if (forceRegenerate) {
+        await regenerateCaseStudy(partnership, selectedModel);
+      } else {
+        await generateCaseStudy(partnership, selectedModel, forceRegenerate);
+      }
+      
+      // Also save to old cache for backward compatibility (temporary)
+      const newCaseStudy = getCaseStudy(partnership.id);
+      if (newCaseStudy) {
+        saveCaseStudyToCache(partnership.id, newCaseStudy);
+      }
+      
     } catch (error) {
       console.error('Error generating case study:', error);
       setError(`Failed to generate case study: ${error.message}`);
-    } finally {
-      setLoading(false);
     }
+  };
+
+  const runBatchProcess = async () => {
+    if (!selectedPartnership) {
+      setError('Please select a partnership first');
+      return;
+    }
+
+    setBatchMode(true);
+    setBatchStep(1);
+    setBatchError(null);
+    
+    try {
+      console.log('Starting batch process for:', selectedPartnership);
+      
+      // Step 1: Generate Case Study
+      setBatchStep(1);
+      await handleGenerateCaseStudy(selectedPartnership, true); // Force regenerate for fresh start
+      
+      // Wait for case study completion using store
+      let attempts = 0;
+      while (!getCaseStudy(selectedPartnership.id) && attempts < 20) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        attempts++;
+      }
+      
+      const currentCaseStudy = getCaseStudy(selectedPartnership.id);
+      if (!currentCaseStudy) {
+        throw new Error('Case study generation failed - timeout waiting for completion');
+      }
+      
+      console.log('✅ Step 1 complete: Case study generated', currentCaseStudy);
+      
+      // Step 2: Advanced Analysis
+      setBatchStep(2);
+      await analyzeCaseStudy(selectedPartnership, currentCaseStudy);
+      
+      // Poll for analysis completion
+      attempts = 0;
+      let updatedCaseStudy = null;
+      while ((!updatedCaseStudy?.advancedMetadata) && attempts < 20) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        updatedCaseStudy = getCaseStudy(selectedPartnership.id);
+        attempts++;
+      }
+      
+      if (!updatedCaseStudy?.advancedMetadata) {
+        throw new Error('Advanced analysis failed - timeout waiting for completion');
+      }
+      
+      console.log('✅ Step 2 complete: Advanced analysis done');
+      
+      // Step 3: Collect References
+      setBatchStep(3);
+      await collectReferences(selectedPartnership, updatedCaseStudy);
+      
+      // Poll for references completion
+      attempts = 0;
+      let finalCaseStudy = null;
+      while ((!finalCaseStudy?._referencesCollected) && attempts < 20) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        finalCaseStudy = getCaseStudy(selectedPartnership.id);
+        attempts++;
+      }
+      
+      console.log('✅ Step 3 complete: References collected');
+      
+      // Complete
+      setBatchStep(0);
+      setBatchMode(false);
+      console.log('🎉 Batch process completed successfully!');
+      
+    } catch (error) {
+      console.error('❌ Batch process failed:', error);
+      setBatchError(error.message);
+      setBatchMode(false);
+      setBatchStep(0);
+      setError(`Batch processing failed at step ${batchStep}: ${error.message}`);
+    }
+  };
+
+  const stopBatchProcess = () => {
+    setBatchMode(false);
+    setBatchStep(0);
+    setBatchError(null);
+    clearCaseStudyError();
+    setAnalyzing(false);
+    setCollectingReferences(false);
+    console.log('🛑 Batch process stopped by user');
   };
 
   const pushToGitHub = async (partnership, caseStudy) => {
@@ -1173,31 +1250,169 @@ Return ONLY the JSON object above with your analysis results.`;
               </p>
             </div>
 
+            {/* Batch Processing Controls */}
+            {selectedPartnership && (
+              <div style={{ 
+                backgroundColor: darkMode ? '#1f2937' : 'white',
+                borderRadius: '12px',
+                padding: '16px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0',
+                marginBottom: '16px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: batchMode ? '12px' : '0' }}>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#1e293b' }}>
+                    🚀 Batch Processing
+                  </h3>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {!batchMode ? (
+                      <button
+                        onClick={runBatchProcess}
+                        disabled={!selectedPartnership}
+                        style={{
+                          padding: '8px 16px',
+                          backgroundColor: '#3b82f6',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: selectedPartnership ? 'pointer' : 'not-allowed',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          opacity: selectedPartnership ? 1 : 0.6,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (selectedPartnership) {
+                            e.target.style.backgroundColor = '#2563eb';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (selectedPartnership) {
+                            e.target.style.backgroundColor = '#3b82f6';
+                          }
+                        }}
+                      >
+                        ⚡ Run All Steps
+                      </button>
+                    ) : (
+                      <button
+                        onClick={stopBatchProcess}
+                        style={{
+                          padding: '8px 16px',
+                          backgroundColor: '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.backgroundColor = '#dc2626';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.backgroundColor = '#ef4444';
+                        }}
+                      >
+                        🛑 Stop
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Progress Indicator */}
+                {batchMode && (
+                  <div style={{ 
+                    backgroundColor: darkMode ? '#374151' : '#f8fafc',
+                    borderRadius: '8px',
+                    padding: '12px',
+                    border: darkMode ? '1px solid #4b5563' : '1px solid #e2e8f0'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                      <div style={{
+                        width: '16px',
+                        height: '16px',
+                        border: '2px solid #e5e7eb',
+                        borderTop: '2px solid #3b82f6',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }}></div>
+                      <span style={{ fontSize: '14px', fontWeight: '500', color: darkMode ? '#f3f4f6' : '#1f2937' }}>
+                        Step {batchStep} of 3: {
+                          batchStep === 1 ? 'Generating Case Study...' :
+                          batchStep === 2 ? 'Running Advanced Analysis...' :
+                          batchStep === 3 ? 'Collecting References...' :
+                          'Processing...'
+                        }
+                      </span>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    <div style={{
+                      width: '100%',
+                      height: '4px',
+                      backgroundColor: darkMode ? '#4b5563' : '#e5e7eb',
+                      borderRadius: '2px',
+                      overflow: 'hidden'
+                    }}>
+                      <div style={{
+                        width: `${(batchStep / 3) * 100}%`,
+                        height: '100%',
+                        backgroundColor: '#3b82f6',
+                        borderRadius: '2px',
+                        transition: 'width 0.3s ease'
+                      }}></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Batch Error */}
+                {batchError && (
+                  <div style={{
+                    marginTop: '8px',
+                    padding: '8px',
+                    backgroundColor: darkMode ? '#7f1d1d' : '#fee2e2',
+                    border: darkMode ? '1px solid #991b1b' : '1px solid #fecaca',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    color: darkMode ? '#fca5a5' : '#991b1b'
+                  }}>
+                    ❌ {batchError}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Case Study Container */}
             <div 
-              onClick={() => selectedPartnership && !caseStudy && !loading ? generateCaseStudy(selectedPartnership) : null}
+              onClick={() => !batchMode && selectedPartnership && !caseStudy && !caseStudyLoading ? handleGenerateCaseStudy(selectedPartnership) : null}
               style={{ 
                 backgroundColor: darkMode ? '#1f2937' : 'white',
                 borderRadius: '12px',
                 padding: '24px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                boxShadow: batchMode && batchStep === 1 ? '0 0 0 2px #3b82f6' : '0 1px 3px rgba(0,0,0,0.1)',
                 border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0',
-                cursor: selectedPartnership && !caseStudy && !loading ? 'pointer' : 'default',
+                cursor: !batchMode && selectedPartnership && !caseStudy && !caseStudyLoading ? 'pointer' : 'default',
                 transition: 'all 0.2s ease',
                 opacity: !selectedPartnership ? 0.6 : 1
               }}
               onMouseEnter={(e) => {
-                if (selectedPartnership && !caseStudy && !loading) {
+                if (!batchMode && selectedPartnership && !caseStudy && !caseStudyLoading) {
                   e.target.style.backgroundColor = darkMode ? '#374151' : '#f8fafc';
                   e.target.style.transform = 'translateY(-2px)';
                   e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
                 }
               }}
               onMouseLeave={(e) => {
-                if (selectedPartnership && !caseStudy && !loading) {
+                if (!batchMode && selectedPartnership && !caseStudy && !caseStudyLoading) {
                   e.target.style.backgroundColor = darkMode ? '#1f2937' : 'white';
                   e.target.style.transform = 'translateY(0px)';
-                  e.target.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                  e.target.style.boxShadow = batchMode && batchStep === 1 ? '0 0 0 2px #3b82f6' : '0 1px 3px rgba(0,0,0,0.1)';
                 }
               }}
             >
@@ -1205,11 +1420,11 @@ Return ONLY the JSON object above with your analysis results.`;
                 <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#1e293b' }}>
                   📄 Case Study
                 </h3>
-                {caseStudy && !loading && (
+                {caseStudy && !caseStudyLoading && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      generateCaseStudy(selectedPartnership, true);
+                      handleGenerateCaseStudy(selectedPartnership, true);
                     }}
                     style={{
                       padding: '6px 12px',
@@ -1247,7 +1462,7 @@ Return ONLY the JSON object above with your analysis results.`;
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                {loading ? (
+                {caseStudyLoading ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{
                       width: '20px',
@@ -1402,29 +1617,29 @@ Return ONLY the JSON object above with your analysis results.`;
 
             {/* Advanced Metadata Container */}
             <div 
-              onClick={() => caseStudy && !caseStudy.advancedMetadata && !analyzing ? analyzeCaseStudy(selectedPartnership, caseStudy) : null}
+              onClick={() => !batchMode && caseStudy && !caseStudy.advancedMetadata && !analyzing ? analyzeCaseStudy(selectedPartnership, caseStudy) : null}
               style={{ 
                 backgroundColor: darkMode ? '#1f2937' : 'white',
                 borderRadius: '12px',
                 padding: '24px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                boxShadow: batchMode && batchStep === 2 ? '0 0 0 2px #3b82f6' : '0 1px 3px rgba(0,0,0,0.1)',
                 border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0',
-                cursor: caseStudy && !caseStudy.advancedMetadata && !analyzing ? 'pointer' : 'default',
+                cursor: !batchMode && caseStudy && !caseStudy.advancedMetadata && !analyzing ? 'pointer' : 'default',
                 transition: 'all 0.2s ease',
                 opacity: !caseStudy ? 0.6 : 1
               }}
               onMouseEnter={(e) => {
-                if (caseStudy && !caseStudy.advancedMetadata && !analyzing) {
+                if (!batchMode && caseStudy && !caseStudy.advancedMetadata && !analyzing) {
                   e.target.style.backgroundColor = darkMode ? '#374151' : '#f8fafc';
                   e.target.style.transform = 'translateY(-2px)';
                   e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
                 }
               }}
               onMouseLeave={(e) => {
-                if (caseStudy && !caseStudy.advancedMetadata && !analyzing) {
+                if (!batchMode && caseStudy && !caseStudy.advancedMetadata && !analyzing) {
                   e.target.style.backgroundColor = darkMode ? '#1f2937' : 'white';
                   e.target.style.transform = 'translateY(0px)';
-                  e.target.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                  e.target.style.boxShadow = batchMode && batchStep === 2 ? '0 0 0 2px #3b82f6' : '0 1px 3px rgba(0,0,0,0.1)';
                 }
               }}
             >
@@ -1512,29 +1727,29 @@ Return ONLY the JSON object above with your analysis results.`;
 
             {/* References Container */}
             <div 
-              onClick={() => caseStudy && !caseStudy._referencesCollected && !collectingReferences ? collectReferences(selectedPartnership, caseStudy) : null}
+              onClick={() => !batchMode && caseStudy && !caseStudy._referencesCollected && !collectingReferences ? collectReferences(selectedPartnership, caseStudy) : null}
               style={{ 
                 backgroundColor: darkMode ? '#1f2937' : 'white',
                 borderRadius: '12px',
                 padding: '24px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                boxShadow: batchMode && batchStep === 3 ? '0 0 0 2px #3b82f6' : '0 1px 3px rgba(0,0,0,0.1)',
                 border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0',
-                cursor: caseStudy && !caseStudy._referencesCollected && !collectingReferences ? 'pointer' : 'default',
+                cursor: !batchMode && caseStudy && !caseStudy._referencesCollected && !collectingReferences ? 'pointer' : 'default',
                 transition: 'all 0.2s ease',
                 opacity: !caseStudy ? 0.6 : 1
               }}
               onMouseEnter={(e) => {
-                if (caseStudy && !caseStudy._referencesCollected && !collectingReferences) {
+                if (!batchMode && caseStudy && !caseStudy._referencesCollected && !collectingReferences) {
                   e.target.style.backgroundColor = darkMode ? '#374151' : '#f8fafc';
                   e.target.style.transform = 'translateY(-2px)';
                   e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
                 }
               }}
               onMouseLeave={(e) => {
-                if (caseStudy && !caseStudy._referencesCollected && !collectingReferences) {
+                if (!batchMode && caseStudy && !caseStudy._referencesCollected && !collectingReferences) {
                   e.target.style.backgroundColor = darkMode ? '#1f2937' : 'white';
                   e.target.style.transform = 'translateY(0px)';
-                  e.target.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                  e.target.style.boxShadow = batchMode && batchStep === 3 ? '0 0 0 2px #3b82f6' : '0 1px 3px rgba(0,0,0,0.1)';
                 }
               }}
             >
