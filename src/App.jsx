@@ -150,16 +150,44 @@ function App() {
   const loadPartnerships = async (csvText = null) => {
     try {
       let text = csvText;
+      let source = '';
+      
       if (!text) {
         const response = await fetch('/data/quantum-partnerships.csv');
         text = await response.text();
+        source = 'default CSV file';
+      } else {
+        source = 'imported CSV file';
       }
+      
       const parsed = parseCSV(text);
+      const previousCount = partnerships.length;
+      
       setPartnerships(parsed);
-      console.log(`Loaded ${parsed.length} partnerships`);
+      
+      // Clear selected partnership if it no longer exists
+      if (selectedPartnership && !parsed.find(p => p.id === selectedPartnership.id)) {
+        setSelectedPartnership(null);
+      }
+      
+      console.log(`Loaded ${parsed.length} partnerships from ${source}`);
+      
+      // Show user feedback
+      if (csvText) {
+        // For imports, show more detailed feedback
+        setError(null); // Clear any existing errors
+        console.log(`✅ Successfully imported ${parsed.length} partnerships`);
+      } else {
+        // For refresh, show brief feedback
+        const change = parsed.length - previousCount;
+        if (change !== 0) {
+          console.log(`🔄 Refreshed: ${change > 0 ? '+' : ''}${change} partnerships`);
+        }
+      }
+      
     } catch (error) {
       console.error('Failed to load partnerships:', error);
-      setError('Failed to load partnership data');
+      setError(`Failed to load partnerships: ${error.message}. Please check the CSV file format.`);
     }
   };
 
@@ -1211,8 +1239,94 @@ ${caseStudy.collectionNotes}
                 Partnerships ({partnerships.length})
               </h2>
               
-              {/* Global Batch Processing Button */}
+              {/* CSV Controls & Global Batch Processing */}
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {/* CSV Refresh Button */}
+                <button
+                  onClick={() => loadPartnerships()}
+                  disabled={globalBatchRunning}
+                  style={{
+                    padding: '6px 12px',
+                    backgroundColor: !globalBatchRunning ? '#3b82f6' : '#6b7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    cursor: !globalBatchRunning ? 'pointer' : 'not-allowed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!globalBatchRunning) {
+                      e.target.style.backgroundColor = '#2563eb';
+                      e.target.style.transform = 'translateY(-1px)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!globalBatchRunning) {
+                      e.target.style.backgroundColor = '#3b82f6';
+                      e.target.style.transform = 'translateY(0px)';
+                    }
+                  }}
+                  title="Refresh partnerships from CSV file"
+                >
+                  🔄 Refresh
+                </button>
+
+                {/* CSV Import Button */}
+                <button
+                  onClick={() => document.getElementById('csvFileInput').click()}
+                  disabled={globalBatchRunning}
+                  style={{
+                    padding: '6px 12px',
+                    backgroundColor: !globalBatchRunning ? '#8b5cf6' : '#6b7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    cursor: !globalBatchRunning ? 'pointer' : 'not-allowed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!globalBatchRunning) {
+                      e.target.style.backgroundColor = '#7c3aed';
+                      e.target.style.transform = 'translateY(-1px)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!globalBatchRunning) {
+                      e.target.style.backgroundColor = '#8b5cf6';
+                      e.target.style.transform = 'translateY(0px)';
+                    }
+                  }}
+                  title="Import new CSV file"
+                >
+                  📄 Import
+                </button>
+
+                {/* Hidden file input */}
+                <input
+                  id="csvFileInput"
+                  type="file"
+                  accept=".csv"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      importCSVFile(file);
+                      // Reset the input so the same file can be selected again
+                      e.target.value = '';
+                    }
+                  }}
+                />
+
                 {!globalBatchRunning ? (
                   <button
                     onClick={runGlobalBatchProcess}
