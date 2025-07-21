@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useCaseStudyStore, useMetadataStore, useReferencesStore, useBatchStore } from './stores';
+import { useCaseStudyStore, useMetadataStore, useReferencesStore, useBatchStore, useGlobalBatchStore } from './stores';
 
 function App() {
   const [partnerships, setPartnerships] = useState([]);
@@ -52,6 +52,33 @@ function App() {
     canProceedToNextStep,
     getAllStepsCompleted
   } = useBatchStore();
+
+  const {
+    isRunning: globalBatchRunning,
+    isPaused: globalBatchPaused,
+    currentPartnership: globalCurrentPartnership,
+    currentPartnershipProgress: globalPartnershipProgress,
+    processedCount,
+    totalPartnerships,
+    successCount,
+    errorCount,
+    initializeGlobalBatch,
+    startGlobalBatch,
+    pauseGlobalBatch,
+    resumeGlobalBatch,
+    stopGlobalBatch,
+    setCurrentPartnership,
+    updateCurrentPartnershipProgress,
+    completeCurrentPartnership,
+    recordError,
+    getNextPartnership,
+    hasMorePartnerships,
+    getProgress: getGlobalProgress,
+    getCurrentPartnershipProgress: getGlobalPartnershipProgress,
+    getProcessingStats,
+    getSessionReport,
+    addLog
+  } = useGlobalBatchStore();
   
   // Derived state
   const caseStudy = selectedPartnership ? getCaseStudy(selectedPartnership.id) : null;
@@ -562,6 +589,200 @@ ${caseStudy.collectionNotes}
     console.log('🛑 Batch process stopped by user');
   };
 
+  // Global Batch Processing Functions
+  const runGlobalBatchProcess = async () => {
+    if (!partnerships || partnerships.length === 0) {
+      setError('No partnerships available for global batch processing');
+      return;
+    }
+
+    try {
+      // Initialize the global batch process
+      initializeGlobalBatch(partnerships, selectedModel);
+      startGlobalBatch();
+
+      // Start processing partnerships one by one
+      await processNextPartnership();
+
+    } catch (error) {
+      console.error('❌ Global batch process failed to start:', error);
+      setError(`Failed to start global batch processing: ${error.message}`);
+      stopGlobalBatch();
+    }
+  };
+
+  const processNextPartnership = async () => {
+    if (!globalBatchRunning || globalBatchPaused) {
+      console.log('🛑 Global batch processing stopped or paused');
+      return;
+    }
+
+    // Get the next partnership to process
+    const nextPartnership = getNextPartnership();
+    if (!nextPartnership) {
+      // No more partnerships to process
+      completeGlobalBatch();
+      console.log('🎉 All partnerships processed!');
+      return;
+    }
+
+    try {
+      // Set current partnership in global store
+      setCurrentPartnership(nextPartnership);
+      
+      // Auto-select this partnership in the UI
+      setSelectedPartnership(nextPartnership);
+      
+      // Small delay to let UI update
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Process this partnership using existing batch logic
+      await processSinglePartnershipInGlobalBatch(nextPartnership);
+      
+      // Mark partnership as completed
+      completeCurrentPartnership({
+        caseStudy: getCaseStudy(nextPartnership.id),
+        metadata: getAdvancedMetadata(nextPartnership.id),
+        references: getReferences(nextPartnership.id)
+      }, 'success');
+
+      // Delay before next partnership
+      if (hasMorePartnerships()) {
+        addLog('info', `Waiting ${useGlobalBatchStore.getState().delayBetweenPartnerships}ms before next partnership`);
+        await new Promise(resolve => setTimeout(resolve, useGlobalBatchStore.getState().delayBetweenPartnerships));
+        
+        // Process next partnership recursively
+        await processNextPartnership();
+      } else {
+        // All done
+        completeGlobalBatch();
+      }
+
+    } catch (error) {
+      console.error('❌ Error processing partnership:', nextPartnership.company, '+', nextPartnership.partner, error);
+      
+      // Record the error
+      recordError(nextPartnership, error);
+      
+      // Mark partnership as failed
+      completeCurrentPartnership({
+        error: error.message
+      }, 'error');
+
+      // Continue with next partnership (resilient processing)
+      if (hasMorePartnerships()) {
+        addLog('warn', `Skipping failed partnership, continuing with next...`);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Short delay after error
+        await processNextPartnership();
+      } else {
+        completeGlobalBatch();
+      }
+    }
+  };
+
+  const processSinglePartnershipInGlobalBatch = async (partnership) => {
+    addLog('info', `Starting 3-step processing for ${partnership.company} + ${partnership.partner}`);
+
+    try {
+      // Step 1: Generate Case Study
+      updateCurrentPartnershipProgress(1, 'in_progress');
+      addLog('info', 'Step 1: Generating case study...');
+      
+      await handleGenerateCaseStudy(partnership, true); // Force regenerate
+      
+      // Wait for completion
+      let attempts = 0;
+      while (!getCaseStudy(partnership.id) && attempts < 30) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        attempts++;
+      }
+      
+      if (!getCaseStudy(partnership.id)) {
+        throw new Error('Case study generation timeout');
+      }
+      
+      updateCurrentPartnershipProgress(1, 'completed');
+      addLog('info', 'Step 1: Case study completed');
+
+      // Step 2: Advanced Analysis  
+      updateCurrentPartnershipProgress(2, 'in_progress');
+      addLog('info', 'Step 2: Running advanced analysis...');
+      
+      const caseStudy = getCaseStudy(partnership.id);
+      await handleAnalyzeCaseStudy(partnership, caseStudy);
+      
+      // Wait for analysis completion
+      attempts = 0;
+      while (!getAdvancedMetadata(partnership.id) && attempts < 30) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        attempts++;
+      }
+      
+      if (!getAdvancedMetadata(partnership.id)) {
+        throw new Error('Advanced analysis timeout');
+      }
+      
+      updateCurrentPartnershipProgress(2, 'completed');
+      addLog('info', 'Step 2: Advanced analysis completed');
+
+      // Step 3: Collect References
+      updateCurrentPartnershipProgress(3, 'in_progress');
+      addLog('info', 'Step 3: Collecting references...');
+      
+      await handleCollectReferences(partnership, caseStudy);
+      
+      // Wait for references completion
+      attempts = 0;
+      while (!isCollected(partnership.id) && attempts < 30) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        attempts++;
+      }
+      
+      if (!isCollected(partnership.id)) {
+        throw new Error('References collection timeout');
+      }
+      
+      updateCurrentPartnershipProgress(3, 'completed');
+      addLog('info', 'Step 3: References collection completed');
+      
+      addLog('info', `✅ Partnership processing completed successfully`);
+
+    } catch (error) {
+      // Record which step failed
+      const currentProgress = getCurrentPartnershipProgress();
+      const failedStep = currentProgress.current + 1;
+      
+      updateCurrentPartnershipProgress(failedStep, 'error', error);
+      addLog('error', `Partnership processing failed at step ${failedStep}: ${error.message}`);
+      
+      throw error; // Re-throw to be handled by processNextPartnership
+    }
+  };
+
+  const stopGlobalBatchProcess = () => {
+    stopGlobalBatch();
+    
+    // Also stop any running individual batch process
+    if (batchMode) {
+      stopBatchProcess();
+    }
+    
+    console.log('🛑 Global batch processing stopped by user');
+  };
+
+  const pauseGlobalBatchProcess = () => {
+    pauseGlobalBatch();
+    console.log('⏸️ Global batch processing paused by user');
+  };
+
+  const resumeGlobalBatchProcess = async () => {
+    resumeGlobalBatch();
+    console.log('▶️ Resuming global batch processing');
+    
+    // Continue processing from where we left off
+    await processNextPartnership();
+  };
+
   const pushToGitHub = async (partnership, caseStudy) => {
     if (!caseStudy) return;
     
@@ -975,14 +1196,243 @@ ${caseStudy.collectionNotes}
             position: 'sticky',
             top: '30px'
           }}>
-            <h2 style={{ 
-              margin: '0 0 20px 0', 
-              fontSize: '20px', 
-              fontWeight: '600',
-              color: darkMode ? '#f8fafc' : '#1e293b'
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              margin: '0 0 20px 0'
             }}>
-              Partnerships ({partnerships.length})
-            </h2>
+              <h2 style={{ 
+                margin: '0', 
+                fontSize: '20px', 
+                fontWeight: '600',
+                color: darkMode ? '#f8fafc' : '#1e293b'
+              }}>
+                Partnerships ({partnerships.length})
+              </h2>
+              
+              {/* Global Batch Processing Button */}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {!globalBatchRunning ? (
+                  <button
+                    onClick={runGlobalBatchProcess}
+                    disabled={!partnerships || partnerships.length === 0}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: partnerships && partnerships.length > 0 ? '#10b981' : '#6b7280',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      cursor: partnerships && partnerships.length > 0 ? 'pointer' : 'not-allowed',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (partnerships && partnerships.length > 0) {
+                        e.target.style.backgroundColor = '#059669';
+                        e.target.style.transform = 'translateY(-1px)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (partnerships && partnerships.length > 0) {
+                        e.target.style.backgroundColor = '#10b981';
+                        e.target.style.transform = 'translateY(0px)';
+                      }
+                    }}
+                  >
+                    🌍 Process All
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    {!globalBatchPaused ? (
+                      <button
+                        onClick={pauseGlobalBatchProcess}
+                        style={{
+                          padding: '6px 12px',
+                          backgroundColor: '#f59e0b',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: '500',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        ⏸️ Pause
+                      </button>
+                    ) : (
+                      <button
+                        onClick={resumeGlobalBatchProcess}
+                        style={{
+                          padding: '6px 12px',
+                          backgroundColor: '#10b981',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: '500',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        ▶️ Resume
+                      </button>
+                    )}
+                    <button
+                      onClick={stopGlobalBatchProcess}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: '#ef4444',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      🛑 Stop
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Global Batch Progress Display */}
+            {globalBatchRunning && (
+              <div style={{
+                backgroundColor: darkMode ? '#374151' : '#f8fafc',
+                border: darkMode ? '1px solid #4b5563' : '1px solid #e2e8f0',
+                borderRadius: '8px',
+                padding: '16px',
+                marginBottom: '16px'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '12px'
+                }}>
+                  <div style={{
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: darkMode ? '#f3f4f6' : '#1f2937'
+                  }}>
+                    🌍 Global Processing: {processedCount} / {totalPartnerships}
+                  </div>
+                  <div style={{
+                    fontSize: '12px',
+                    color: darkMode ? '#9ca3af' : '#6b7280'
+                  }}>
+                    {globalBatchPaused ? '⏸️ Paused' : '🔄 Running'}
+                  </div>
+                </div>
+
+                {/* Global Progress Bar */}
+                <div style={{
+                  width: '100%',
+                  height: '6px',
+                  backgroundColor: darkMode ? '#4b5563' : '#e5e7eb',
+                  borderRadius: '3px',
+                  overflow: 'hidden',
+                  marginBottom: '12px'
+                }}>
+                  <div style={{
+                    width: `${getGlobalProgress().percentage}%`,
+                    height: '100%',
+                    backgroundColor: '#10b981',
+                    borderRadius: '3px',
+                    transition: 'width 0.3s ease'
+                  }}></div>
+                </div>
+
+                {/* Current Partnership Status */}
+                {globalCurrentPartnership && (
+                  <div style={{
+                    backgroundColor: darkMode ? '#1f2937' : 'white',
+                    border: darkMode ? '1px solid #4b5563' : '1px solid #e2e8f0',
+                    borderRadius: '6px',
+                    padding: '12px'
+                  }}>
+                    <div style={{
+                      fontSize: '13px',
+                      fontWeight: '500',
+                      color: darkMode ? '#f3f4f6' : '#1f2937',
+                      marginBottom: '8px'
+                    }}>
+                      Currently Processing: {globalCurrentPartnership.company} + {globalCurrentPartnership.partner}
+                    </div>
+
+                    {/* Current Partnership Steps */}
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '11px',
+                        color: darkMode ? '#9ca3af' : '#6b7280'
+                      }}>
+                        <div style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: globalPartnershipProgress?.caseStudy === 'completed' ? '#10b981' : 
+                                         globalPartnershipProgress?.caseStudy === 'in_progress' ? '#f59e0b' : '#6b7280'
+                        }}></div>
+                        Case Study
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '11px',
+                        color: darkMode ? '#9ca3af' : '#6b7280'
+                      }}>
+                        <div style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: globalPartnershipProgress?.metadata === 'completed' ? '#10b981' : 
+                                         globalPartnershipProgress?.metadata === 'in_progress' ? '#f59e0b' : '#6b7280'
+                        }}></div>
+                        Analysis
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '11px',
+                        color: darkMode ? '#9ca3af' : '#6b7280'
+                      }}>
+                        <div style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: globalPartnershipProgress?.references === 'completed' ? '#10b981' : 
+                                         globalPartnershipProgress?.references === 'in_progress' ? '#f59e0b' : '#6b7280'
+                        }}></div>
+                        References
+                      </div>
+                    </div>
+
+                    {/* Stats */}
+                    <div style={{
+                      display: 'flex',
+                      gap: '16px',
+                      marginTop: '8px',
+                      fontSize: '11px',
+                      color: darkMode ? '#9ca3af' : '#6b7280'
+                    }}>
+                      <span>✅ Success: {successCount}</span>
+                      <span>❌ Errors: {errorCount}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             
             <div style={{ 
               display: 'grid', 
