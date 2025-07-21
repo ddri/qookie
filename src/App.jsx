@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useCaseStudyStore, useMetadataStore, useReferencesStore } from './stores';
+import { useCaseStudyStore, useMetadataStore, useReferencesStore, useBatchStore } from './stores';
 
 function App() {
   const [partnerships, setPartnerships] = useState([]);
@@ -35,6 +35,23 @@ function App() {
     error: referencesError,
     clearError: clearReferencesError
   } = useReferencesStore();
+
+  const {
+    isRunning: batchMode,
+    currentStep: batchStep,
+    error: batchError,
+    stepProgress,
+    startBatch,
+    setStepInProgress,
+    setStepCompleted,
+    setStepError,
+    completeBatch,
+    stopBatch,
+    clearError: clearBatchError,
+    getProgress,
+    canProceedToNextStep,
+    getAllStepsCompleted
+  } = useBatchStore();
   
   // Derived state
   const caseStudy = selectedPartnership ? getCaseStudy(selectedPartnership.id) : null;
@@ -64,9 +81,7 @@ function App() {
   const [showFileConflictDialog, setShowFileConflictDialog] = useState(false);
   const [fileConflictData, setFileConflictData] = useState(null);
   const [darkMode, setDarkMode] = useState(true);
-  const [batchMode, setBatchMode] = useState(false);
-  const [batchStep, setBatchStep] = useState(0); // 0=not running, 1=case study, 2=analysis, 3=references
-  const [batchError, setBatchError] = useState(null);
+  // Removed: batch state variables - now using useBatchStore
 
   // Load everything on startup - simple CMS pattern
   useEffect(() => {
@@ -467,18 +482,16 @@ ${caseStudy.collectionNotes}
       return;
     }
 
-    setBatchMode(true);
-    setBatchStep(1);
-    setBatchError(null);
+    startBatch(selectedPartnership, selectedModel);
     
     try {
-      console.log('Starting batch process for:', selectedPartnership);
+      console.log('🚀 Starting batch process for:', selectedPartnership);
       
       // Step 1: Generate Case Study
-      setBatchStep(1);
+      setStepInProgress(1);
       await handleGenerateCaseStudy(selectedPartnership, true); // Force regenerate for fresh start
       
-      // Wait for case study completion using store
+      // Wait for case study completion
       let attempts = 0;
       while (!getCaseStudy(selectedPartnership.id) && attempts < 20) {
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -490,60 +503,59 @@ ${caseStudy.collectionNotes}
         throw new Error('Case study generation failed - timeout waiting for completion');
       }
       
-      console.log('✅ Step 1 complete: Case study generated', currentCaseStudy);
+      setStepCompleted(1);
+      console.log('✅ Step 1 complete: Case study generated');
       
       // Step 2: Advanced Analysis
-      setBatchStep(2);
-      await analyzeCaseStudy(selectedPartnership, currentCaseStudy);
+      setStepInProgress(2);
+      await handleAnalyzeCaseStudy(selectedPartnership, currentCaseStudy);
       
-      // Poll for analysis completion
+      // Wait for analysis completion using the metadata store
       attempts = 0;
-      let updatedCaseStudy = null;
-      while ((!updatedCaseStudy?.advancedMetadata) && attempts < 20) {
+      while (!getAdvancedMetadata(selectedPartnership.id) && attempts < 20) {
         await new Promise(resolve => setTimeout(resolve, 500));
-        updatedCaseStudy = getCaseStudy(selectedPartnership.id);
         attempts++;
       }
       
-      if (!updatedCaseStudy?.advancedMetadata) {
+      const analysisResult = getAdvancedMetadata(selectedPartnership.id);
+      if (!analysisResult) {
         throw new Error('Advanced analysis failed - timeout waiting for completion');
       }
       
+      setStepCompleted(2);
       console.log('✅ Step 2 complete: Advanced analysis done');
       
       // Step 3: Collect References
-      setBatchStep(3);
-      await collectReferences(selectedPartnership, updatedCaseStudy);
+      setStepInProgress(3);
+      await handleCollectReferences(selectedPartnership, currentCaseStudy);
       
-      // Poll for references completion
+      // Wait for references completion using the references store
       attempts = 0;
-      let finalCaseStudy = null;
-      while ((!finalCaseStudy?._referencesCollected) && attempts < 20) {
+      while (!isCollected(selectedPartnership.id) && attempts < 20) {
         await new Promise(resolve => setTimeout(resolve, 500));
-        finalCaseStudy = getCaseStudy(selectedPartnership.id);
         attempts++;
       }
       
+      if (!isCollected(selectedPartnership.id)) {
+        throw new Error('References collection failed - timeout waiting for completion');
+      }
+      
+      setStepCompleted(3);
       console.log('✅ Step 3 complete: References collected');
       
-      // Complete
-      setBatchStep(0);
-      setBatchMode(false);
+      // Complete the batch process
+      completeBatch();
       console.log('🎉 Batch process completed successfully!');
       
     } catch (error) {
-      console.error('❌ Batch process failed:', error);
-      setBatchError(error.message);
-      setBatchMode(false);
-      setBatchStep(0);
+      console.error('❌ Batch process failed at step', batchStep, ':', error);
+      setStepError(batchStep, error);
       setError(`Batch processing failed at step ${batchStep}: ${error.message}`);
     }
   };
 
   const stopBatchProcess = () => {
-    setBatchMode(false);
-    setBatchStep(0);
-    setBatchError(null);
+    stopBatch();
     clearCaseStudyError();
     clearMetadataError();
     clearReferencesError();
@@ -1146,12 +1158,8 @@ ${caseStudy.collectionNotes}
                         animation: 'spin 1s linear infinite'
                       }}></div>
                       <span style={{ fontSize: '14px', fontWeight: '500', color: darkMode ? '#f3f4f6' : '#1f2937' }}>
-                        Step {batchStep} of 3: {
-                          batchStep === 1 ? 'Generating Case Study...' :
-                          batchStep === 2 ? 'Running Advanced Analysis...' :
-                          batchStep === 3 ? 'Collecting References...' :
-                          'Processing...'
-                        }
+                        Step {batchStep} of 3: {stepProgress[batchStep]?.name || 'Processing...'}
+                        {stepProgress[batchStep]?.status === 'in_progress' ? '...' : ''}
                       </span>
                     </div>
                     
@@ -1164,7 +1172,7 @@ ${caseStudy.collectionNotes}
                       overflow: 'hidden'
                     }}>
                       <div style={{
-                        width: `${(batchStep / 3) * 100}%`,
+                        width: `${getProgress().percentage}%`,
                         height: '100%',
                         backgroundColor: '#3b82f6',
                         borderRadius: '2px',
