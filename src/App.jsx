@@ -108,6 +108,20 @@ function App() {
   const [showFileConflictDialog, setShowFileConflictDialog] = useState(false);
   const [fileConflictData, setFileConflictData] = useState(null);
   const [darkMode, setDarkMode] = useState(true);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  
+  // Settings state
+  const [settings, setSettings] = useState({
+    aiModel: 'claude-sonnet-4-20250514',
+    rateLimitMode: 'uncapped', // 'uncapped', 'conservative', 'custom'
+    customDelay: 15, // seconds for custom mode
+    delays: {
+      uncapped: 2,
+      conservative: 45,
+      custom: 15
+    }
+  });
+  
   // Removed: batch state variables - now using useBatchStore
 
   // Load everything on startup - simple CMS pattern
@@ -902,6 +916,60 @@ ${caseStudy.collectionNotes}
     await processNextPartnership();
   };
 
+  // Settings calculation functions
+  const getCurrentDelay = () => {
+    switch (settings.rateLimitMode) {
+      case 'uncapped': return settings.delays.uncapped;
+      case 'conservative': return settings.delays.conservative;
+      case 'custom': return settings.delays.custom;
+      default: return settings.delays.uncapped;
+    }
+  };
+
+  const calculateEstimatedCost = (mode = settings.rateLimitMode) => {
+    const partnershipCount = partnerships.length;
+    if (partnershipCount === 0) return '0.00';
+
+    // Rough cost estimates per partnership (3 API calls each)
+    const costPerPartnership = {
+      'claude-sonnet-4-20250514': 0.45,  // Premium Claude
+      'claude-3-5-sonnet-20241022': 0.25, // Standard Claude  
+      'gpt-4': 0.55,                      // Premium GPT
+      'gpt-3.5-turbo': 0.08               // Budget GPT
+    };
+
+    const baseCost = (costPerPartnership[settings.aiModel] || 0.25) * partnershipCount;
+    
+    // Conservative mode might use more tokens due to retries/slower processing
+    const modeMultiplier = {
+      'uncapped': 1.0,
+      'conservative': 1.1,  // 10% more due to potential retries
+      'custom': 1.05        // 5% more due to variable delays
+    };
+
+    const finalCost = baseCost * (modeMultiplier[mode] || 1.0);
+    return finalCost.toFixed(2);
+  };
+
+  const calculateTotalTime = () => {
+    const partnershipCount = partnerships.length;
+    if (partnershipCount === 0) return '0 minutes';
+
+    const delaySeconds = getCurrentDelay();
+    const avgProcessingTimePerPartnership = 45; // seconds per partnership (3 steps)
+    
+    const totalSeconds = partnershipCount * (avgProcessingTimePerPartnership + delaySeconds);
+    const minutes = Math.round(totalSeconds / 60);
+    
+    if (minutes < 60) {
+      return `${minutes} minutes`;
+    } else {
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+      return `${hours}h ${remainingMinutes}m`;
+    }
+  };
+
   const pushToGitHub = async (partnership, caseStudy) => {
     if (!caseStudy) return;
     
@@ -1417,6 +1485,41 @@ ${caseStudy.collectionNotes}
                     }
                   }}
                 />
+
+                {/* Settings Button */}
+                <button
+                  onClick={() => setShowSettingsModal(true)}
+                  disabled={globalBatchRunning}
+                  style={{
+                    padding: '6px 12px',
+                    backgroundColor: !globalBatchRunning ? '#f59e0b' : '#6b7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    cursor: !globalBatchRunning ? 'pointer' : 'not-allowed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!globalBatchRunning) {
+                      e.target.style.backgroundColor = '#d97706';
+                      e.target.style.transform = 'translateY(-1px)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!globalBatchRunning) {
+                      e.target.style.backgroundColor = '#f59e0b';
+                      e.target.style.transform = 'translateY(0px)';
+                    }
+                  }}
+                  title="Configure batch processing settings"
+                >
+                  ⚙️ Settings
+                </button>
 
                 {!globalBatchRunning ? (
                   <button
@@ -2785,6 +2888,329 @@ ${caseStudy.collectionNotes}
         )}
       </div>
     </div>
+
+    {/* Settings Modal */}
+    {showSettingsModal && (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000
+      }}>
+        <div style={{
+          backgroundColor: darkMode ? '#1f2937' : 'white',
+          borderRadius: '12px',
+          padding: '24px',
+          maxWidth: '500px',
+          width: '90%',
+          maxHeight: '80vh',
+          overflowY: 'auto',
+          border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+        }}>
+          {/* Modal Header */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '24px'
+          }}>
+            <h2 style={{
+              margin: 0,
+              fontSize: '20px',
+              fontWeight: '600',
+              color: darkMode ? '#f8fafc' : '#1e293b'
+            }}>
+              ⚙️ Batch Processing Settings
+            </h2>
+            <button
+              onClick={() => setShowSettingsModal(false)}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '24px',
+                cursor: 'pointer',
+                color: darkMode ? '#9ca3af' : '#6b7280',
+                padding: '4px'
+              }}
+            >
+              ×
+            </button>
+          </div>
+
+          {/* AI Model Selection */}
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '14px',
+              fontWeight: '500',
+              color: darkMode ? '#f3f4f6' : '#1f2937',
+              marginBottom: '8px'
+            }}>
+              AI Model
+            </label>
+            <select
+              value={settings.aiModel}
+              onChange={(e) => setSettings({...settings, aiModel: e.target.value})}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: darkMode ? '1px solid #374151' : '1px solid #d1d5db',
+                backgroundColor: darkMode ? '#374151' : 'white',
+                color: darkMode ? '#f8fafc' : '#1e293b',
+                fontSize: '14px'
+              }}
+            >
+              <option value="claude-sonnet-4-20250514">Claude 4 Sonnet (Premium)</option>
+              <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+              <option value="gpt-4">GPT-4 (Premium)</option>
+              <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Budget)</option>
+            </select>
+          </div>
+
+          {/* Rate Limiting Mode */}
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '14px',
+              fontWeight: '500',
+              color: darkMode ? '#f3f4f6' : '#1f2937',
+              marginBottom: '12px'
+            }}>
+              Rate Limiting Mode
+            </label>
+
+            {/* Uncapped Mode */}
+            <div style={{
+              padding: '12px',
+              borderRadius: '8px',
+              border: settings.rateLimitMode === 'uncapped' ? '2px solid #3b82f6' : `1px solid ${darkMode ? '#374151' : '#e2e8f0'}`,
+              backgroundColor: settings.rateLimitMode === 'uncapped' ? (darkMode ? '#1e3a8a' : '#eff6ff') : (darkMode ? '#374151' : '#f8fafc'),
+              marginBottom: '8px',
+              cursor: 'pointer'
+            }} onClick={() => setSettings({...settings, rateLimitMode: 'uncapped'})}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: darkMode ? '#f3f4f6' : '#1f2937',
+                    marginBottom: '4px'
+                  }}>
+                    📈 Uncapped ({settings.delays.uncapped}s delay)
+                  </div>
+                  <div style={{
+                    fontSize: '12px',
+                    color: darkMode ? '#9ca3af' : '#6b7280'
+                  }}>
+                    Fastest processing, may hit rate limits with premium models
+                  </div>
+                </div>
+                <div style={{
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: settings.rateLimitMode === 'uncapped' ? '#3b82f6' : (darkMode ? '#9ca3af' : '#6b7280')
+                }}>
+                  ~${calculateEstimatedCost('uncapped')}
+                </div>
+              </div>
+            </div>
+
+            {/* Conservative Mode */}
+            <div style={{
+              padding: '12px',
+              borderRadius: '8px',
+              border: settings.rateLimitMode === 'conservative' ? '2px solid #10b981' : `1px solid ${darkMode ? '#374151' : '#e2e8f0'}`,
+              backgroundColor: settings.rateLimitMode === 'conservative' ? (darkMode ? '#064e3b' : '#f0fdf4') : (darkMode ? '#374151' : '#f8fafc'),
+              marginBottom: '8px',
+              cursor: 'pointer'
+            }} onClick={() => setSettings({...settings, rateLimitMode: 'conservative'})}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: darkMode ? '#f3f4f6' : '#1f2937',
+                    marginBottom: '4px'
+                  }}>
+                    🛡️ Conservative ({settings.delays.conservative}s delay)
+                  </div>
+                  <div style={{
+                    fontSize: '12px',
+                    color: darkMode ? '#9ca3af' : '#6b7280'
+                  }}>
+                    Safe for all models, slower processing, ideal for overnight runs
+                  </div>
+                </div>
+                <div style={{
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: settings.rateLimitMode === 'conservative' ? '#10b981' : (darkMode ? '#9ca3af' : '#6b7280')
+                }}>
+                  ~${calculateEstimatedCost('conservative')}
+                </div>
+              </div>
+            </div>
+
+            {/* Custom Mode */}
+            <div style={{
+              padding: '12px',
+              borderRadius: '8px',
+              border: settings.rateLimitMode === 'custom' ? '2px solid #8b5cf6' : `1px solid ${darkMode ? '#374151' : '#e2e8f0'}`,
+              backgroundColor: settings.rateLimitMode === 'custom' ? (darkMode ? '#581c87' : '#faf5ff') : (darkMode ? '#374151' : '#f8fafc'),
+              cursor: 'pointer'
+            }} onClick={() => setSettings({...settings, rateLimitMode: 'custom'})}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: darkMode ? '#f3f4f6' : '#1f2937',
+                    marginBottom: '4px'
+                  }}>
+                    ⚙️ Custom Delay
+                  </div>
+                  <div style={{
+                    fontSize: '12px',
+                    color: darkMode ? '#9ca3af' : '#6b7280',
+                    marginBottom: '8px'
+                  }}>
+                    Set your own delay between partnerships
+                  </div>
+                  {settings.rateLimitMode === 'custom' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="range"
+                        min="2"
+                        max="300"
+                        value={settings.delays.custom}
+                        onChange={(e) => {
+                          const newDelay = parseInt(e.target.value);
+                          setSettings({
+                            ...settings,
+                            delays: { ...settings.delays, custom: newDelay }
+                          });
+                        }}
+                        style={{ flex: 1 }}
+                      />
+                      <input
+                        type="number"
+                        min="2"
+                        max="300"
+                        value={settings.delays.custom}
+                        onChange={(e) => {
+                          const newDelay = parseInt(e.target.value) || 2;
+                          setSettings({
+                            ...settings,
+                            delays: { ...settings.delays, custom: Math.min(300, Math.max(2, newDelay)) }
+                          });
+                        }}
+                        style={{
+                          width: '60px',
+                          padding: '4px 6px',
+                          borderRadius: '4px',
+                          border: darkMode ? '1px solid #4b5563' : '1px solid #d1d5db',
+                          backgroundColor: darkMode ? '#4b5563' : 'white',
+                          color: darkMode ? '#f8fafc' : '#1e293b',
+                          fontSize: '12px'
+                        }}
+                      />
+                      <span style={{
+                        fontSize: '12px',
+                        color: darkMode ? '#9ca3af' : '#6b7280'
+                      }}>seconds</span>
+                    </div>
+                  )}
+                </div>
+                <div style={{
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: settings.rateLimitMode === 'custom' ? '#8b5cf6' : (darkMode ? '#9ca3af' : '#6b7280')
+                }}>
+                  ~${calculateEstimatedCost('custom')}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Processing Estimate */}
+          <div style={{
+            padding: '16px',
+            borderRadius: '8px',
+            backgroundColor: darkMode ? '#374151' : '#f8fafc',
+            border: darkMode ? '1px solid #4b5563' : '1px solid #e2e8f0',
+            marginBottom: '24px'
+          }}>
+            <div style={{
+              fontSize: '14px',
+              fontWeight: '500',
+              color: darkMode ? '#f3f4f6' : '#1f2937',
+              marginBottom: '8px'
+            }}>
+              📊 Processing Estimate
+            </div>
+            <div style={{
+              fontSize: '13px',
+              color: darkMode ? '#9ca3af' : '#6b7280',
+              lineHeight: '1.4'
+            }}>
+              <div>• {partnerships.length} partnerships</div>
+              <div>• ~{calculateTotalTime()} processing time</div>
+              <div>• Estimated cost: ${calculateEstimatedCost()}</div>
+              <div>• {getCurrentDelay()}s between partnerships</div>
+            </div>
+          </div>
+
+          {/* Modal Actions */}
+          <div style={{
+            display: 'flex',
+            gap: '12px',
+            justifyContent: 'flex-end'
+          }}>
+            <button
+              onClick={() => setShowSettingsModal(false)}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: darkMode ? '1px solid #4b5563' : '1px solid #d1d5db',
+                backgroundColor: darkMode ? '#374151' : 'white',
+                color: darkMode ? '#f8fafc' : '#1e293b',
+                fontSize: '14px',
+                cursor: 'pointer'
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                // Save settings (could persist to localStorage here)
+                setSelectedModel(settings.aiModel);
+                setShowSettingsModal(false);
+              }}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer'
+              }}
+            >
+              Save Settings
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   );
 }
