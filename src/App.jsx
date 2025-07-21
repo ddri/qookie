@@ -683,16 +683,30 @@ ${caseStudy.collectionNotes}
 
   // Global Batch Processing Functions
   const runGlobalBatchProcess = async () => {
+    console.log('🌍 Process All button clicked!');
+    console.log('Partnerships:', partnerships?.length || 0);
+    console.log('Selected model:', selectedModel);
+    
     if (!partnerships || partnerships.length === 0) {
+      console.error('❌ No partnerships available');
       setError('No partnerships available for global batch processing');
       return;
     }
 
     try {
+      console.log('🚀 Starting global batch process...');
+      
       // Initialize the global batch process
+      console.log('📋 Initializing global batch...');
       initializeGlobalBatch(partnerships, selectedModel);
+      
+      console.log('▶️ Starting global batch...');
       startGlobalBatch();
 
+      // Small delay to ensure state is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('🔄 Processing first partnership...');
       // Start processing partnerships one by one
       await processNextPartnership();
 
@@ -704,13 +718,26 @@ ${caseStudy.collectionNotes}
   };
 
   const processNextPartnership = async () => {
-    if (!globalBatchRunning || globalBatchPaused) {
+    console.log('🔄 processNextPartnership called');
+    
+    // Check both hook state and direct store state
+    const storeState = useGlobalBatchStore.getState();
+    console.log('Hook globalBatchRunning:', globalBatchRunning);
+    console.log('Store isRunning:', storeState.isRunning);
+    console.log('globalBatchPaused:', globalBatchPaused);
+    console.log('Store isPaused:', storeState.isPaused);
+    
+    // Use store state directly to avoid hook synchronization issues
+    if (!storeState.isRunning || storeState.isPaused) {
       console.log('🛑 Global batch processing stopped or paused');
       return;
     }
 
     // Get the next partnership to process
+    console.log('📋 Getting next partnership...');
     const nextPartnership = getNextPartnership();
+    console.log('Next partnership:', nextPartnership);
+    
     if (!nextPartnership) {
       // No more partnerships to process
       completeGlobalBatch();
