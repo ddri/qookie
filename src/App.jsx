@@ -151,6 +151,7 @@ function App() {
     try {
       let text = csvText;
       let source = '';
+      const isImport = !!csvText; // true if importing new file, false if refreshing
       
       if (!text) {
         const response = await fetch('/data/quantum-partnerships.csv');
@@ -170,20 +171,24 @@ function App() {
         setSelectedPartnership(null);
       }
       
-      console.log(`Loaded ${parsed.length} partnerships from ${source}`);
-      
-      // Show user feedback
-      if (csvText) {
-        // For imports, show more detailed feedback
+      // Handle cache logic based on operation type
+      if (isImport) {
+        // For CSV imports: Clear all cached data (new dataset)
+        console.log('🗑️ Clearing cached data for new dataset...');
+        clearAllCachedData();
+        console.log(`✅ Successfully imported ${parsed.length} partnerships (cache cleared)`);
         setError(null); // Clear any existing errors
-        console.log(`✅ Successfully imported ${parsed.length} partnerships`);
       } else {
-        // For refresh, show brief feedback
+        // For refresh: Keep existing cache (same dataset, possibly updated)
         const change = parsed.length - previousCount;
         if (change !== 0) {
-          console.log(`🔄 Refreshed: ${change > 0 ? '+' : ''}${change} partnerships`);
+          console.log(`🔄 Refreshed: ${change > 0 ? '+' : ''}${change} partnerships (cache preserved)`);
+        } else {
+          console.log(`🔄 Refreshed ${parsed.length} partnerships (no changes)`);
         }
       }
+      
+      console.log(`Loaded ${parsed.length} partnerships from ${source}`);
       
     } catch (error) {
       console.error('Failed to load partnerships:', error);
@@ -294,6 +299,65 @@ function App() {
     } catch (error) {
       console.warn('Failed to load cached case study:', error);
       return null;
+    }
+  };
+
+  const clearAllCachedData = () => {
+    try {
+      // Clear localStorage cache entries
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('case-study-')) {
+          keysToRemove.push(key);
+        }
+      }
+      
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+        console.log(`🗑️ Removed cached case study: ${key}`);
+      });
+      
+      // Clear Zustand stores using proper state updates
+      console.log('🗑️ Clearing Zustand stores...');
+      
+      // Clear case study store
+      useCaseStudyStore.setState({ caseStudies: {} });
+      
+      // Clear metadata store  
+      useMetadataStore.setState({ 
+        basicMetadata: {}, 
+        advancedMetadata: {} 
+      });
+      
+      // Clear references store - reset to initial state
+      useReferencesStore.setState({
+        references: {},
+        furtherReading: {},
+        collectionNotes: {},
+        collecting: false,
+        error: null
+      });
+      
+      // Remove all dynamic collection flags from the store
+      const referencesState = useReferencesStore.getState();
+      const keysToDelete = Object.keys(referencesState).filter(key => 
+        key.includes('_collected') || key.includes('_collectedAt')
+      );
+      
+      if (keysToDelete.length > 0) {
+        const updateObj = {};
+        keysToDelete.forEach(key => {
+          updateObj[key] = undefined; // Setting to undefined removes the key
+        });
+        useReferencesStore.setState(updateObj);
+        console.log(`🗑️ Removed ${keysToDelete.length} collection flags`);
+      }
+      
+      console.log('✅ All cached data cleared successfully');
+      
+    } catch (error) {
+      console.error('Failed to clear cached data:', error);
     }
   };
 
