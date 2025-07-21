@@ -109,6 +109,8 @@ function App() {
   const [fileConflictData, setFileConflictData] = useState(null);
   const [darkMode, setDarkMode] = useState(true);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showBatchCompleteModal, setShowBatchCompleteModal] = useState(false);
+  const [batchResults, setBatchResults] = useState(null);
   
   // Settings state
   const [settings, setSettings] = useState({
@@ -753,9 +755,8 @@ ${caseStudy.collectionNotes}
     console.log('Next partnership:', nextPartnership);
     
     if (!nextPartnership) {
-      // No more partnerships to process
-      completeGlobalBatch();
-      console.log('🎉 All partnerships processed!');
+      // No more partnerships to process - show completion modal
+      handleGlobalBatchComplete();
       return;
     }
 
@@ -787,8 +788,8 @@ ${caseStudy.collectionNotes}
         // Process next partnership recursively
         await processNextPartnership();
       } else {
-        // All done
-        completeGlobalBatch();
+        // All done - show completion modal
+        handleGlobalBatchComplete();
       }
 
     } catch (error) {
@@ -808,7 +809,7 @@ ${caseStudy.collectionNotes}
         await new Promise(resolve => setTimeout(resolve, 1000)); // Short delay after error
         await processNextPartnership();
       } else {
-        completeGlobalBatch();
+        handleGlobalBatchComplete();
       }
     }
   };
@@ -914,6 +915,233 @@ ${caseStudy.collectionNotes}
     
     // Continue processing from where we left off
     await processNextPartnership();
+  };
+
+  // Global batch completion handler
+  const handleGlobalBatchComplete = () => {
+    console.log('🎉 Global batch processing completed!');
+    
+    // Get completion statistics
+    const stats = getProcessingStats();
+    const processedPartnerships = [];
+    
+    // Collect all successfully processed partnerships with their data
+    partnerships.forEach(partnership => {
+      const caseStudy = getCaseStudy(partnership.id);
+      const metadata = getAdvancedMetadata(partnership.id);
+      const references = getReferences(partnership.id);
+      const furtherReading = getFurtherReading(partnership.id);
+      
+      if (caseStudy) {
+        processedPartnerships.push({
+          partnership,
+          caseStudy,
+          metadata,
+          references,
+          furtherReading,
+          hasMetadata: !!metadata,
+          hasReferences: references.length > 0 || furtherReading.length > 0
+        });
+      }
+    });
+    
+    // Set results for the completion modal
+    setBatchResults({
+      stats,
+      processedPartnerships,
+      sessionReport: getSessionReport(),
+      timestamp: new Date().toISOString()
+    });
+    
+    // Complete the batch in the store
+    completeGlobalBatch();
+    
+    // Show completion modal
+    setShowBatchCompleteModal(true);
+  };
+
+  // Batch export functions
+  const exportAllToZip = async () => {
+    if (!batchResults) return;
+    
+    try {
+      console.log('📦 Creating ZIP export for', batchResults.processedPartnerships.length, 'partnerships');
+      
+      // Create zip file content
+      const zipContent = [];
+      
+      // Add individual case studies
+      batchResults.processedPartnerships.forEach(({ partnership, caseStudy, metadata, references, furtherReading }, index) => {
+        const filename = `${partnership.company}-${partnership.partner}-${partnership.year || 'unknown'}.md`.replace(/[^a-zA-Z0-9-_.]/g, '-');
+        
+        // Generate markdown content
+        const markdownContent = generateMarkdownContent(partnership, caseStudy, metadata, references, furtherReading);
+        zipContent.push({ filename, content: markdownContent });
+        
+        // Also add JSON version
+        const jsonFilename = filename.replace('.md', '.json');
+        const jsonContent = JSON.stringify({
+          partnership,
+          caseStudy,
+          metadata,
+          references,
+          furtherReading,
+          exportedAt: new Date().toISOString()
+        }, null, 2);
+        zipContent.push({ filename: jsonFilename, content: jsonContent });
+      });
+      
+      // Add processing report
+      const reportContent = generateProcessingReport(batchResults);
+      zipContent.push({ filename: 'processing-report.md', content: reportContent });
+      
+      // Add session data
+      const sessionData = JSON.stringify(batchResults.sessionReport, null, 2);
+      zipContent.push({ filename: 'session-data.json', content: sessionData });
+      
+      // Create and download ZIP (using JSZip library would be ideal, but for now we'll create a simple download)
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+      const zipFilename = `qookie-export-${timestamp}.zip`;
+      
+      // For now, create individual file downloads (would need JSZip for actual ZIP)
+      // This is a simplified version - in production you'd want JSZip
+      console.log('📁 Generated', zipContent.length, 'files for export');
+      
+      // Download as individual files for now (TODO: implement proper ZIP)
+      zipContent.forEach(({ filename, content }) => {
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      });
+      
+      console.log('✅ Export completed successfully');
+      
+    } catch (error) {
+      console.error('❌ Error exporting to ZIP:', error);
+      setError(`Failed to export: ${error.message}`);
+    }
+  };
+
+  const pushAllToGitHub = async () => {
+    if (!batchResults) return;
+    
+    try {
+      console.log('🔗 Pushing', batchResults.processedPartnerships.length, 'case studies to GitHub');
+      
+      for (const { partnership, caseStudy, metadata, references, furtherReading } of batchResults.processedPartnerships) {
+        await pushToGitHub(partnership, {
+          ...caseStudy,
+          metadata,
+          references,
+          furtherReading
+        });
+        
+        // Small delay between pushes to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      console.log('✅ All case studies pushed to GitHub successfully');
+      
+    } catch (error) {
+      console.error('❌ Error pushing to GitHub:', error);
+      setError(`Failed to push to GitHub: ${error.message}`);
+    }
+  };
+
+  const generateMarkdownContent = (partnership, caseStudy, metadata, references, furtherReading) => {
+    // Generate comprehensive markdown content
+    let content = `# ${partnership.company} + ${partnership.partner} Case Study\n\n`;
+    
+    content += `**Year:** ${partnership.year || 'Unknown'}\n`;
+    content += `**Notes:** ${partnership.notes || 'No additional notes'}\n\n`;
+    
+    if (caseStudy.title) content += `## ${caseStudy.title}\n\n`;
+    if (caseStudy.summary) content += `### Executive Summary\n${caseStudy.summary}\n\n`;
+    if (caseStudy.introduction) content += `### Introduction\n${caseStudy.introduction}\n\n`;
+    if (caseStudy.challenge) content += `### Challenge\n${caseStudy.challenge}\n\n`;
+    if (caseStudy.solution) content += `### Solution\n${caseStudy.solution}\n\n`;
+    if (caseStudy.implementation) content += `### Implementation\n${caseStudy.implementation}\n\n`;
+    if (caseStudy.results_and_business_impact) content += `### Results & Business Impact\n${caseStudy.results_and_business_impact}\n\n`;
+    if (caseStudy.future_directions) content += `### Future Directions\n${caseStudy.future_directions}\n\n`;
+    
+    // Add metadata if available
+    if (metadata) {
+      content += `## Analysis Metadata\n\n`;
+      if (metadata.algorithms?.length > 0) content += `**Algorithms:** ${metadata.algorithms.join(', ')}\n`;
+      if (metadata.industries?.length > 0) content += `**Industries:** ${metadata.industries.join(', ')}\n`;
+      if (metadata.personas?.length > 0) content += `**Target Personas:** ${metadata.personas.join(', ')}\n`;
+      if (metadata.confidence_score) content += `**Confidence Score:** ${metadata.confidence_score}\n`;
+      if (metadata.analysis_notes) content += `**Analysis Notes:** ${metadata.analysis_notes}\n`;
+      content += '\n';
+    }
+    
+    // Add references if available
+    if (references?.length > 0) {
+      content += `## Academic References\n\n`;
+      references.forEach((ref, index) => {
+        content += `${index + 1}. **${ref.title}**\n`;
+        if (ref.authors) content += `   *Authors:* ${ref.authors}\n`;
+        if (ref.journal) content += `   *Journal:* ${ref.journal}\n`;
+        if (ref.year) content += `   *Year:* ${ref.year}\n`;
+        if (ref.url) content += `   *URL:* ${ref.url}\n`;
+        content += '\n';
+      });
+    }
+    
+    // Add further reading if available
+    if (furtherReading?.length > 0) {
+      content += `## Further Reading\n\n`;
+      furtherReading.forEach((item, index) => {
+        content += `${index + 1}. **${item.title}**\n`;
+        if (item.source) content += `   *Source:* ${item.source}\n`;
+        if (item.type) content += `   *Type:* ${item.type}\n`;
+        if (item.date) content += `   *Date:* ${item.date}\n`;
+        if (item.url) content += `   *URL:* ${item.url}\n`;
+        if (item.description) content += `   *Description:* ${item.description}\n`;
+        content += '\n';
+      });
+    }
+    
+    content += `\n---\n*Generated by Qookie on ${new Date().toLocaleDateString()}*\n`;
+    
+    return content;
+  };
+
+  const generateProcessingReport = (results) => {
+    const { stats, processedPartnerships } = results;
+    
+    let report = `# Qookie Batch Processing Report\n\n`;
+    
+    report += `**Processing Date:** ${new Date(results.timestamp).toLocaleDateString()}\n`;
+    report += `**Total Partnerships:** ${stats.total}\n`;
+    report += `**Successfully Processed:** ${stats.success}\n`;
+    report += `**Errors:** ${stats.errors}\n`;
+    report += `**Processing Duration:** ${stats.duration ? Math.round(stats.duration / 60) : 'Unknown'} minutes\n\n`;
+    
+    report += `## Processing Summary\n\n`;
+    processedPartnerships.forEach(({ partnership, hasMetadata, hasReferences }) => {
+      report += `- **${partnership.company} + ${partnership.partner}** `;
+      report += `(${partnership.year || 'Unknown year'}) `;
+      report += hasMetadata ? '✅ Metadata ' : '❌ Metadata ';
+      report += hasReferences ? '✅ References' : '❌ References';
+      report += '\n';
+    });
+    
+    if (stats.errors > 0) {
+      report += `\n## Errors Encountered\n\n`;
+      // Add error details from session report
+      // This would need to be populated from the actual error data
+    }
+    
+    report += `\n---\n*Generated by Qookie Batch Processing System*\n`;
+    
+    return report;
   };
 
   // Settings calculation functions
@@ -3206,6 +3434,276 @@ ${caseStudy.collectionNotes}
               }}
             >
               Save Settings
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Batch Complete Modal */}
+    {showBatchCompleteModal && batchResults && (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000
+      }}>
+        <div style={{
+          backgroundColor: darkMode ? '#1f2937' : 'white',
+          borderRadius: '12px',
+          padding: '32px',
+          maxWidth: '600px',
+          width: '90%',
+          maxHeight: '80vh',
+          overflowY: 'auto',
+          border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+        }}>
+          {/* Modal Header */}
+          <div style={{
+            textAlign: 'center',
+            marginBottom: '24px'
+          }}>
+            <div style={{
+              fontSize: '48px',
+              marginBottom: '16px'
+            }}>🎉</div>
+            <h2 style={{
+              margin: 0,
+              fontSize: '24px',
+              fontWeight: '600',
+              color: darkMode ? '#f8fafc' : '#1e293b',
+              marginBottom: '8px'
+            }}>
+              Batch Processing Complete!
+            </h2>
+            <p style={{
+              margin: 0,
+              fontSize: '16px',
+              color: darkMode ? '#9ca3af' : '#6b7280'
+            }}>
+              Successfully processed {batchResults.stats.success} of {batchResults.stats.total} partnerships
+            </p>
+          </div>
+
+          {/* Statistics */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+            gap: '16px',
+            marginBottom: '24px'
+          }}>
+            <div style={{
+              textAlign: 'center',
+              padding: '16px',
+              borderRadius: '8px',
+              backgroundColor: darkMode ? '#064e3b' : '#f0fdf4',
+              border: darkMode ? '1px solid #065f46' : '1px solid #bbf7d0'
+            }}>
+              <div style={{
+                fontSize: '24px',
+                fontWeight: '600',
+                color: '#10b981',
+                marginBottom: '4px'
+              }}>{batchResults.stats.success}</div>
+              <div style={{
+                fontSize: '12px',
+                color: darkMode ? '#9ca3af' : '#6b7280'
+              }}>Successful</div>
+            </div>
+            
+            {batchResults.stats.errors > 0 && (
+              <div style={{
+                textAlign: 'center',
+                padding: '16px',
+                borderRadius: '8px',
+                backgroundColor: darkMode ? '#7f1d1d' : '#fef2f2',
+                border: darkMode ? '1px solid #991b1b' : '1px solid #fecaca'
+              }}>
+                <div style={{
+                  fontSize: '24px',
+                  fontWeight: '600',
+                  color: '#ef4444',
+                  marginBottom: '4px'
+                }}>{batchResults.stats.errors}</div>
+                <div style={{
+                  fontSize: '12px',
+                  color: darkMode ? '#9ca3af' : '#6b7280'
+                }}>Errors</div>
+              </div>
+            )}
+            
+            <div style={{
+              textAlign: 'center',
+              padding: '16px',
+              borderRadius: '8px',
+              backgroundColor: darkMode ? '#1e3a8a' : '#eff6ff',
+              border: darkMode ? '1px solid #1e40af' : '1px solid #bfdbfe'
+            }}>
+              <div style={{
+                fontSize: '24px',
+                fontWeight: '600',
+                color: '#3b82f6',
+                marginBottom: '4px'
+              }}>{batchResults.stats.duration ? Math.round(batchResults.stats.duration / 60) : '?'}</div>
+              <div style={{
+                fontSize: '12px',
+                color: darkMode ? '#9ca3af' : '#6b7280'
+              }}>Minutes</div>
+            </div>
+          </div>
+
+          {/* Export Options */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            marginBottom: '24px'
+          }}>
+            <button
+              onClick={exportAllToZip}
+              style={{
+                padding: '16px 24px',
+                borderRadius: '8px',
+                border: 'none',
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#2563eb'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#3b82f6'}
+            >
+              📦 Export All to Files
+            </button>
+            
+            <button
+              onClick={pushAllToGitHub}
+              style={{
+                padding: '16px 24px',
+                borderRadius: '8px',
+                border: 'none',
+                backgroundColor: '#10b981',
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#059669'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#10b981'}
+            >
+              🔗 Push All to GitHub
+            </button>
+            
+            <button
+              onClick={() => {
+                const reportContent = generateProcessingReport(batchResults);
+                const blob = new Blob([reportContent], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `qookie-processing-report-${new Date().toISOString().slice(0, 10)}.md`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+              }}
+              style={{
+                padding: '16px 24px',
+                borderRadius: '8px',
+                border: 'none',
+                backgroundColor: '#8b5cf6',
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#7c3aed'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#8b5cf6'}
+            >
+              📊 Download Processing Report
+            </button>
+          </div>
+
+          {/* Processing Summary */}
+          <div style={{
+            backgroundColor: darkMode ? '#374151' : '#f8fafc',
+            border: darkMode ? '1px solid #4b5563' : '1px solid #e2e8f0',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: '24px',
+            maxHeight: '200px',
+            overflowY: 'auto'
+          }}>
+            <div style={{
+              fontSize: '14px',
+              fontWeight: '500',
+              color: darkMode ? '#f3f4f6' : '#1f2937',
+              marginBottom: '12px'
+            }}>
+              Processing Summary:
+            </div>
+            <div style={{
+              fontSize: '13px',
+              color: darkMode ? '#9ca3af' : '#6b7280',
+              lineHeight: '1.4'
+            }}>
+              {batchResults.processedPartnerships.map(({ partnership, hasMetadata, hasReferences }) => (
+                <div key={partnership.id} style={{ marginBottom: '4px' }}>
+                  <strong>{partnership.company} + {partnership.partner}</strong>
+                  {' '}
+                  {hasMetadata ? '✅' : '❌'} Metadata
+                  {' '}
+                  {hasReferences ? '✅' : '❌'} References
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Modal Actions */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center'
+          }}>
+            <button
+              onClick={() => {
+                setShowBatchCompleteModal(false);
+                setBatchResults(null);
+              }}
+              style={{
+                padding: '12px 24px',
+                borderRadius: '6px',
+                border: darkMode ? '1px solid #4b5563' : '1px solid #d1d5db',
+                backgroundColor: darkMode ? '#374151' : 'white',
+                color: darkMode ? '#f8fafc' : '#1e293b',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer'
+              }}
+            >
+              Close
             </button>
           </div>
         </div>
