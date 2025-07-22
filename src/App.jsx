@@ -489,6 +489,9 @@ ${caseStudy.future_directions}
 - **Algorithms**: ${caseStudy.advancedMetadata.algorithms && caseStudy.advancedMetadata.algorithms.join(', ') || 'None specified'}
 - **Industries**: ${caseStudy.advancedMetadata.industries && caseStudy.advancedMetadata.industries.join(', ') || 'None specified'}
 - **Target Personas**: ${caseStudy.advancedMetadata.personas && caseStudy.advancedMetadata.personas.join(', ') || 'None specified'}
+- **Quantum Hardware**: ${caseStudy.advancedMetadata.quantum_hardware && caseStudy.advancedMetadata.quantum_hardware.join(', ') || 'None specified'}
+- **Quantum Software**: ${caseStudy.advancedMetadata.quantum_software && caseStudy.advancedMetadata.quantum_software.join(', ') || 'None specified'}${caseStudy.advancedMetadata.hardware_details && Object.keys(caseStudy.advancedMetadata.hardware_details).length > 0 ? `
+- **Hardware Details**: ${Object.entries(caseStudy.advancedMetadata.hardware_details).map(([key, value]) => `${key}: ${value}`).join(', ')}` : ''}
 - **Confidence Score**: ${caseStudy.advancedMetadata.confidence_score || 'Not provided'}
 - **Analysis Notes**: ${caseStudy.advancedMetadata.analysis_notes || 'None'}
 - **Analyzed**: ${caseStudy.advancedMetadata._analyzedAt ? new Date(caseStudy.advancedMetadata._analyzedAt).toLocaleString() : 'Not analyzed'}
@@ -2335,6 +2338,15 @@ ${caseStudy.collectionNotes}
                       <div><strong>Algorithms:</strong> {advancedMetadata.algorithms?.join(', ') || 'None'}</div>
                       <div><strong>Industries:</strong> {advancedMetadata.industries?.join(', ') || 'None'}</div>
                       <div><strong>Personas:</strong> {advancedMetadata.personas?.join(', ') || 'None'}</div>
+                      <div><strong>Hardware:</strong> {advancedMetadata.quantum_hardware?.join(', ') || 'None'}</div>
+                      <div><strong>Software:</strong> {advancedMetadata.quantum_software?.join(', ') || 'None'}</div>
+                      {advancedMetadata.hardware_details && Object.keys(advancedMetadata.hardware_details).length > 0 && (
+                        <div><strong>Hardware Details:</strong> {
+                          Object.entries(advancedMetadata.hardware_details)
+                            .map(([key, value]) => `${key}: ${value}`)
+                            .join(', ')
+                        }</div>
+                      )}
                       <div><strong>Confidence:</strong> {advancedMetadata.confidence_score || 'N/A'}</div>
                     </div>
                   </div>
