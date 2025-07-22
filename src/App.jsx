@@ -2045,15 +2045,37 @@ ${caseStudy.collectionNotes}
                   📄 Case Study
                 </h3>
                 {caseStudy && !caseStudyLoading && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleGenerateCaseStudy(selectedPartnership, true);
-                    }}
-                    style={btn('warning', 'sm', false, darkMode)}
-                  >
-                    🔄 Regenerate
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        exportToMarkdown(selectedPartnership, caseStudy);
+                      }}
+                      className="btn-quantum btn-secondary px-3 py-1.5 text-sm"
+                      title="Export case study as Markdown file"
+                    >
+                      📄 Export
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        pushToGitHub(selectedPartnership, caseStudy);
+                      }}
+                      className="btn-quantum btn-success px-3 py-1.5 text-sm"
+                      title="Push case study to GitHub repository"
+                    >
+                      🔗 GitHub
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleGenerateCaseStudy(selectedPartnership, true);
+                      }}
+                      className="btn-quantum btn-warning px-3 py-1.5 text-sm"
+                    >
+                      🔄 Regenerate
+                    </button>
+                  </div>
                 )}
               </div>
               <div style={{ 
