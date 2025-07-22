@@ -6,7 +6,7 @@ export const useMetadataStore = create(
     (set, get) => ({
       // State
       basicMetadata: {}, // { partnershipId: { algorithms, industries, personas, confidence_score } }
-      advancedMetadata: {}, // { partnershipId: { algorithms, industries, personas, confidence_score, analysis_notes, _analyzed, _analyzedAt } }
+      advancedMetadata: {}, // { partnershipId: { algorithms, industries, personas, quantum_hardware, quantum_software, hardware_details, confidence_score, analysis_notes, _analyzed, _analyzedAt } }
       analyzing: false,
       error: null,
 
@@ -47,7 +47,7 @@ export const useMetadataStore = create(
           console.log('- Industries count:', referenceLists.industries?.length || 0)
           console.log('- Personas count:', referenceLists.personas?.length || 0)
           
-          const prompt = `You are analyzing a quantum computing case study. Your task is to match the case study content against provided reference lists and return ONLY a JSON object with the analysis results.
+          const prompt = `You are analyzing a quantum computing case study. Your task is to analyze the content for algorithms, industries, personas, and discover quantum hardware/software platforms used.
 
 CASE STUDY TO ANALYZE:
 Title: ${caseStudy.title}
@@ -64,22 +64,30 @@ Algorithms: ${referenceLists.algorithms?.join(', ') || 'No algorithms loaded'}
 Industries: ${referenceLists.industries?.join(', ') || 'No industries loaded'}
 Personas: ${referenceLists.personas?.join(', ') || 'No personas loaded'}
 
-Your task is to analyze the case study content and match it against the reference lists. Return ONLY a JSON object with these exact fields:
+Your task is to analyze the case study content and return ONLY a JSON object with these exact fields:
 
 {
   "algorithms": ["algorithm1", "algorithm2"],
   "industries": ["industry1", "industry2"], 
   "personas": ["persona1", "persona2"],
+  "quantum_hardware": ["IBM Quantum System One", "IonQ Aria"],
+  "quantum_software": ["Qiskit", "Cirq", "PennyLane"],
+  "hardware_details": {
+    "platform": "IBM Quantum",
+    "qubit_type": "superconducting",
+    "qubit_count": 127
+  },
   "confidence_score": 0.85,
   "analysis_notes": "Brief notes about the analysis and any assumptions made"
 }
 
-IMPORTANT MATCHING RULES:
-1. ONLY include items from the reference lists provided above
-2. Do not invent new items that aren't in the reference lists
-3. If no clear matches are found, return empty arrays []
-4. Confidence score should be between 0.0 and 1.0
-5. Analysis notes should be 1-2 sentences maximum
+ANALYSIS RULES:
+1. Algorithms/Industries/Personas: ONLY include items from the reference lists above
+2. Quantum Hardware/Software: DISCOVER and extract any quantum computing platforms, systems, or SDKs mentioned
+3. Hardware Details: Extract technical specifications if mentioned (platform, qubit type/count)
+4. If no clear matches/discoveries are found, return empty arrays [] or empty objects {}
+5. Confidence score should be between 0.0 and 1.0
+6. Analysis notes should be 1-2 sentences maximum
 
 Return ONLY the JSON object above with your analysis results.`;
 
@@ -110,6 +118,9 @@ Return ONLY the JSON object above with your analysis results.`;
             algorithms: analysisResult.algorithms || [],
             industries: analysisResult.industries || [],
             personas: analysisResult.personas || [],
+            quantum_hardware: analysisResult.quantum_hardware || [],
+            quantum_software: analysisResult.quantum_software || [],
+            hardware_details: analysisResult.hardware_details || {},
             confidence_score: analysisResult.confidence_score || 0.8,
             analysis_notes: analysisResult.analysis_notes || '',
             _analyzed: true,
