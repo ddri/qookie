@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Common Commands
 
 ### Development
-- `npm run dev` - Start development server (runs on port 3000)
+- `npm run dev` - Start development server (runs on port 3555)
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 
@@ -43,7 +43,7 @@ This is Qookie - a React-based quantum computing case study processor that gener
 ### Key Files
 - `src/index.jsx` - Entry point with Claude API mock setup
 - `data/quantum-partnerships.csv` - Source data for partnerships
-- `vite.config.js` - Vite configuration with port 3000 and auto-open
+- `vite.config.js` - Vite configuration with port 3555 and auto-open
 
 ### Dark Mode Support
 - Full dark mode implementation with toggle in header

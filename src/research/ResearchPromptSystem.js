@@ -25,10 +25,11 @@ Create a detailed case study about the quantum computing partnership between ${p
 RESEARCH REQUIREMENTS:
 1. Conduct thorough research using publicly available information
 2. Focus on factual, verifiable information only
-3. Include specific technical details about quantum implementation
-4. Provide quantifiable business impact metrics where available
-5. Maintain professional, academic tone throughout
-6. Include proper citations and references
+3. CRITICAL: Research and identify the actual partnership timeline, announcement date, project phases, and key milestones - even if not provided in source data
+4. Include specific technical details about quantum implementation
+5. Provide quantifiable business impact metrics where available
+6. Maintain professional, academic tone throughout
+7. Include proper citations and references
 
 CASE STUDY STRUCTURE:
 Your response must be structured as a valid JSON object with the following format:
@@ -37,10 +38,10 @@ Your response must be structured as a valid JSON object with the following forma
   "title": "Professional title for the case study",
   "slug": "url-friendly-slug",
   "summary": "2-3 sentence executive summary",
-  "introduction": "Comprehensive introduction paragraph explaining the partnership context, companies involved, and strategic objectives. Include timeline and partnership announcement details.",
+  "introduction": "Comprehensive introduction paragraph explaining the partnership context, companies involved, and strategic objectives. MUST include specific dates: partnership announcement date, project start date, and key timeline milestones.",
   "challenge": "Detailed description of the specific business or technical challenge being addressed. Include industry context, market pressures, and why quantum computing was chosen as the solution approach.",
   "solution": "Technical description of the quantum computing solution implemented. Include specific quantum hardware/software platforms, algorithms used, technical architecture, and how it integrates with existing systems.",
-  "implementation": "Step-by-step description of how the solution was implemented. Include project phases, timeline, team composition, testing procedures, and deployment strategy.",
+  "implementation": "Step-by-step description of how the solution was implemented. Include specific project phases with dates, detailed timeline with months/quarters, team composition, testing procedures, and deployment strategy.",
   "results_and_business_impact": "Quantifiable results and business impact. Include specific metrics, performance improvements, cost savings, competitive advantages, and measurable outcomes.",
   "future_directions": "Partnership roadmap and expansion plans. Include next phase developments, scaling plans, commercialization strategy, and long-term vision.",
   "technical_details": "Deep technical information about quantum algorithms, hardware specifications, integration challenges, and technical innovations.",
@@ -72,6 +73,9 @@ Your response must be structured as a valid JSON object with the following forma
     "company": "${partnership.company}",
     "partner": "${partnership.partner}",
     "year": "${partnership.year || 'TBD'}",
+    "announcement_date": "Specific date when partnership was announced (YYYY-MM-DD format)",
+    "project_start_date": "Date when project/collaboration began (YYYY-MM-DD format)",
+    "timeline_status": "ongoing|completed|pilot_phase|commercial_deployment",
     "research_date": "${new Date().toISOString().split('T')[0]}",
     "word_count": "approximate_word_count"
   }
@@ -90,8 +94,18 @@ CRITICAL: Return ONLY valid JSON. Do not include any text before or after the JS
 Partnership Details:
 - Quantum Company: ${partnership.company}
 - Commercial Partner: ${partnership.partner}
-- Year: ${partnership.year || 'Unknown'}
+- Year: ${partnership.year || 'RESEARCH REQUIRED - Find announcement/start dates'}
 - Notes: ${partnership.notes || 'No additional notes'}
+
+TIMELINE RESEARCH INSTRUCTIONS:
+- If partnership year is missing or 'TBD', you MUST research and find:
+  • Partnership announcement date
+  • Project initiation date  
+  • Key milestone dates
+  • Current status and timeline
+- Look for press releases, company announcements, research papers, and news articles
+- Include specific months/quarters when possible
+- If multiple phases exist, document each phase timeline
 
 BEGIN RESEARCH AND CASE STUDY GENERATION:`;
 
