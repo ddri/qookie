@@ -49,7 +49,7 @@ export const useReferencesStore = create(
           const academicQuery = `"${partnership.company}" "${partnership.partner}" quantum computing research paper`
           console.log('Searching for academic papers:', academicQuery)
           
-          const academicResponse = await fetch('http://localhost:3002/api/search', {
+          const academicResponse = await fetch('http://localhost:3556/api/search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -69,7 +69,7 @@ export const useReferencesStore = create(
           const businessQuery = `"${partnership.company}" "${partnership.partner}" partnership announcement blog press release`
           console.log('Searching for business coverage:', businessQuery)
           
-          const businessResponse = await fetch('http://localhost:3002/api/search', {
+          const businessResponse = await fetch('http://localhost:3556/api/search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -86,7 +86,7 @@ export const useReferencesStore = create(
           console.log('Business search results:', businessData)
           
           // Step 3: Use Claude to curate references from search results
-          const referencesResponse = await fetch('http://localhost:3002/api/references', {
+          const referencesResponse = await fetch('http://localhost:3556/api/references', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

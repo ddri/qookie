@@ -47,7 +47,7 @@ export const useCaseStudyStore = create(
         try {
           console.log('🔬 Generating case study for:', partnership, 'forceRegenerate:', forceRegenerate)
           
-          const response = await fetch('http://localhost:3002/api/research', {
+          const response = await fetch('http://localhost:3556/api/research', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -96,7 +96,7 @@ export const useCaseStudyStore = create(
         try {
           console.log('🔄 Regenerating case study for:', partnership)
           
-          const response = await fetch('http://localhost:3002/api/research', {
+          const response = await fetch('http://localhost:3556/api/research', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

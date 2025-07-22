@@ -85,7 +85,7 @@ Return ONLY the JSON object above with your analysis results.`;
 
           console.log('🚀 Sending analysis request to API...')
           
-          const response = await fetch('http://localhost:3002/api/analyze', {
+          const response = await fetch('http://localhost:3556/api/analyze', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

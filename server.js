@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const app = express();
-const port = 3002;
+const port = 3556;
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -184,6 +184,8 @@ app.post('/api/research', async (req, res) => {
     // Create research prompt
     const prompt = `Research and create a comprehensive case study about the quantum computing partnership between "${company}" and "${partner}".
 
+CRITICAL TIMELINE RESEARCH: You must actively research and identify specific dates, timelines, and milestones for this partnership, even if not provided in the source data. Look for announcement dates, project phases, and current status.
+
 IMPORTANT: You must respond with ONLY valid JSON. No markdown, no explanations, no text before or after the JSON.
 
 Return this exact JSON structure:
@@ -191,23 +193,31 @@ Return this exact JSON structure:
 {
   "title": "Partnership title",
   "summary": "2-3 sentence executive summary",
-  "introduction": "Detailed introduction (200+ words)",
+  "introduction": "Detailed introduction (200+ words) - MUST include specific partnership announcement date and timeline details",
   "challenge": "What challenge did this partnership address? (200+ words)",
   "solution": "What quantum solution was developed? (200+ words)", 
-  "implementation": "How was it implemented? (200+ words)",
+  "implementation": "How was it implemented? (200+ words) - MUST include project phases with specific dates/timeframes",
   "results_and_business_impact": "What were the results and business impact? (200+ words)",
   "future_directions": "What are the future plans? (150+ words)",
   "metadata": {
     "algorithms": ["list", "of", "quantum", "algorithms"],
     "industries": ["list", "of", "industries"],
     "personas": ["list", "of", "target", "personas"],
+    "announcement_date": "YYYY-MM-DD format - research and find actual date",
+    "project_timeline": "Brief description of project phases and timing",
     "confidence_score": 0.85
   }
 }
 
 Additional context:
-- Year: ${year || 'Unknown'}
+- Year: ${year || 'RESEARCH REQUIRED - You must find the actual partnership dates'}
 - Notes: ${notes || 'None'}
+
+TIMELINE RESEARCH REQUIREMENTS:
+- If year is missing, you MUST research and find the partnership announcement date
+- Look for press releases, company blogs, research papers, and news coverage
+- Include specific months/quarters when possible
+- Document project phases and current status
 
 Focus on factual information and realistic quantum computing applications. Respond with ONLY the JSON object.`;
 

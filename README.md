@@ -19,6 +19,10 @@
 - **📊 Real-time Progress**: Multi-level tracking with pause/resume capability
 - **🔄 Intelligent Caching**: Preserves work on refresh, clears on import
 - **⚙️ Professional Settings**: Cost estimates, processing time calculations
+- **💾 Session Management**: Backup and restore complete research sessions
+- **📝 AI Transparency**: View all prompts and commands being used
+- **🌙 Dark Mode**: Beautiful light/dark theme with seamless switching
+- **🎨 Modern UI**: Clean Tailwind CSS design with organized navigation
 
 ---
 
@@ -31,7 +35,7 @@ npm install
 echo "ANTHROPIC_API_KEY=your_key" > .env
 npm run dev & node server.js
 
-# Visit localhost:3000
+# Visit localhost:3555
 # Click "🌍 Process All" 
 # Watch 25+ partnerships become professional case studies
 ```
@@ -48,10 +52,11 @@ npm run dev & node server.js
 ### **🤖 AI Model Support**
 | Model | Cost/Partnership | Best For |
 |-------|------------------|----------|
+| **Claude 4 Opus** | $0.60 | Most capable |
 | **Claude 4 Sonnet** | $0.45 | Premium quality |
 | **Claude 3.5 Sonnet** | $0.25 | Balanced performance |
-| **GPT-4** | $0.55 | OpenAI preference |
-| **GPT-3.5 Turbo** | $0.08 | Budget processing |
+| **Claude 3.5 Haiku** | $0.15 | Fast & smart |
+| **Claude 3 Haiku** | $0.10 | Budget processing |
 
 ### **📋 Generated Content**
 Each partnership automatically gets:
@@ -96,36 +101,56 @@ EOF
 
 ### 3. Launch Application
 ```bash
-# Terminal 1: Start frontend (port 3000)
+# Terminal 1: Start frontend (port 3555)
 npm run dev
 
-# Terminal 2: Start backend API (port 3002)  
+# Terminal 2: Start backend API (port 3556)  
 node server.js
 
-# Open http://localhost:3000
+# Open http://localhost:3555
 ```
 
 ---
 
 ## 🎮 How to Use
 
+Qookie features a clean, organized navigation bar with grouped functionality:
+
+### **📊 Navigation Overview**
+- **Session Management**: 💾📥 Backup and restore complete research sessions
+- **Data Controls**: 🔄 Refresh | 📄 Import CSV files
+- **Tools**: 📝 Prompts | ⚙️ Settings | 🌙 Dark Mode Toggle
+- **Main Action**: 🌍 Process All (with pause/resume controls)
+
 ### **Single Partnership Mode**
-1. **Select Partnership**: Click any partnership card
-2. **Generate Case Study**: Professional research document  
-3. **Analyze Metadata**: AI categorization (algorithms, industries, personas)
-4. **Collect References**: Academic papers + business articles
-5. **Export/Backup**: Markdown export or GitHub integration
+1. **Select Partnership**: Click any partnership card from the left panel
+2. **Generate Case Study**: Click "Generate Case Study" for AI research
+3. **Analyze Metadata**: Use "Analyze Metadata" to categorize content
+4. **Collect References**: Gather academic papers and business articles
+5. **Export Options**: Download markdown or push to GitHub
 
 ### **🌍 Global Batch Mode** *(The Game Changer)*
-1. **Click ⚙️ Settings**: Configure model, delays, see cost estimates
-2. **Click 🌍 Process All**: Processes entire CSV automatically
-3. **Monitor Progress**: Real-time partnership and step tracking
-4. **Pause/Resume**: Full control over long-running processes
+1. **Configure Settings**: Click ⚙️ Settings to choose AI model and processing speed
+2. **Start Processing**: Click 🌍 Process All to process entire dataset
+3. **Monitor Progress**: Watch real-time progress with partnership and step tracking
+4. **Control Flow**: Use ⏸️ Pause, ▶️ Resume, or 🛑 Stop as needed
+5. **Export Results**: Bulk download or push all results to GitHub
+
+### **📝 AI Transparency**
+- **View Prompts**: Click 📝 Prompts to see all AI instructions
+- **Research Quality**: Prompts include timeline research and quality standards
+- **Categorization**: See how metadata analysis works with reference lists
+
+### **💾 Session Management**
+- **Backup**: 💾 icon saves current session to GitHub
+- **Restore**: 📥 icon restores previous session from GitHub
+- **Smart Persistence**: Work is automatically cached and preserved
 
 ### **CSV Data Management**
 - **🔄 Refresh**: Reload partnerships (preserves cached work)
 - **📄 Import**: Upload new CSV (clears cache for fresh start)
-- **Smart Caching**: ✓ symbols show completed partnerships
+- **Progress Indicators**: ✓ symbols show completed partnerships
+- **Smart Caching**: Resume work after browser refresh
 
 ---
 
@@ -149,16 +174,22 @@ Built with **Zustand** for production-grade state handling:
 ```
 qookie/
 ├── src/
-│   ├── App.jsx                     # Main application  
+│   ├── App.jsx                     # Main application with Tailwind UI
 │   ├── stores/                     # Zustand state management
 │   │   ├── useCaseStudyStore.js    # Case study generation
 │   │   ├── useMetadataStore.js     # Metadata analysis  
 │   │   ├── useReferencesStore.js   # Reference collection
 │   │   ├── useBatchStore.js        # Single batch processing
 │   │   └── useGlobalBatchStore.js  # Global batch processing
-│   └── research/                   # AI research engine
+│   ├── styles/                     # Design system
+│   │   └── buttonStyles.js         # Legacy button components
+│   ├── research/                   # AI research engine
+│   │   ├── QuantumResearchEngine.js # Advanced research system
+│   │   └── ResearchPromptSystem.js  # Structured AI prompts
+│   └── index.css                   # Tailwind CSS styles
 ├── data/                          # CSV templates and docs
 ├── public/data/                   # Active partnership data
+├── tailwind.config.js             # Tailwind configuration
 └── server.js                     # Backend API server
 ```
 
@@ -169,10 +200,14 @@ qookie/
 ### **Rate Limiting Settings**
 Access via **⚙️ Settings** button:
 
-- **AI Model Selection**: Choose cost vs quality balance
-- **Processing Mode**: Uncapped, Conservative, or Custom delays
+- **AI Model Selection**: Choose from Claude 4 Opus, Sonnet, 3.5 models
+- **Processing Modes**: 
+  - **Uncapped** (2s delay): Fast processing for quick results
+  - **Conservative** (45s delay): Safe for all models, prevents rate limits
+  - **Custom** (2-300s): Set your own delay with live cost calculator
 - **Cost Calculator**: Real-time estimates before processing
 - **Time Estimates**: Total processing duration predictions
+- **Per-Mode Configuration**: Each rate limit mode has independent AI model selection
 
 ### **CSV Data Format**
 ```csv
@@ -236,8 +271,8 @@ We welcome contributions! Here's how:
 npm install
 
 # Start development environment
-npm run dev        # Frontend on :3000
-node server.js     # Backend on :3002
+npm run dev        # Frontend on :3555
+node server.js     # Backend on :3556
 
 # Build for production
 npm run build
@@ -259,6 +294,48 @@ npm run build
 - **Rate Limiting**: Prevents expensive overages
 - **Model Choice**: Budget to premium options
 - **Real-time Estimates**: Know costs before processing
+
+---
+
+## 🔧 Troubleshooting
+
+### **Common Issues**
+
+**Q: Settings modal crashes when I click rate limiting options**
+A: This was fixed in v2.0. Update to latest version or ensure all partnerships data is loaded properly.
+
+**Q: Dark mode isn't working**
+A: Clear localStorage and refresh. Dark mode state should persist automatically.
+
+**Q: Buttons look broken or inconsistent**
+A: Ensure Tailwind CSS is properly loaded. Check browser console for CSS errors.
+
+**Q: "Process All" button is disabled**
+A: Make sure partnerships are loaded. Use 🔄 Refresh or 📄 Import to load CSV data.
+
+**Q: AI responses are incomplete or errors**
+A: Check your ANTHROPIC_API_KEY in .env file. Verify you have API credits available.
+
+**Q: GitHub backup/restore not working**
+A: Verify GITHUB_TOKEN, GITHUB_REPO_OWNER, and GITHUB_REPO_NAME are set in .env.
+
+### **Development Issues**
+
+**Q: Port conflicts**
+A: Qookie uses ports 3555 (frontend) and 3556 (backend) to avoid conflicts with other projects.
+
+**Q: Tailwind classes not working**
+A: Run `npm install` to ensure all dependencies are installed, including Tailwind v3.
+
+**Q: Case studies not saving**
+A: Check browser localStorage. Clear cache if needed. Backup important work to GitHub first.
+
+### **Performance Tips**
+
+- Use **Conservative mode** for overnight processing
+- **Backup sessions** regularly during long batch jobs
+- **Pause/Resume** if you need to close the browser
+- Monitor **cost estimates** before large batch runs
 
 ---
 

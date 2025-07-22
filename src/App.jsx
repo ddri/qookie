@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useCaseStudyStore, useMetadataStore, useReferencesStore, useBatchStore, useGlobalBatchStore } from './stores';
+import { btn } from './styles/buttonStyles';
 
 function App() {
   const [partnerships, setPartnerships] = useState([]);
@@ -110,17 +111,25 @@ function App() {
   const [darkMode, setDarkMode] = useState(true);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showBatchCompleteModal, setShowBatchCompleteModal] = useState(false);
+  const [showPromptsModal, setShowPromptsModal] = useState(false);
   const [batchResults, setBatchResults] = useState(null);
   
-  // Settings state
+  // Settings state - each mode has its own AI model selection
   const [settings, setSettings] = useState({
-    aiModel: 'claude-sonnet-4-20250514',
     rateLimitMode: 'uncapped', // 'uncapped', 'conservative', 'custom'
-    customDelay: 15, // seconds for custom mode
-    delays: {
-      uncapped: 2,
-      conservative: 45,
-      custom: 15
+    modes: {
+      uncapped: {
+        aiModel: 'claude-sonnet-4-20250514',
+        delay: 2
+      },
+      conservative: {
+        aiModel: 'claude-sonnet-4-20250514', 
+        delay: 45
+      },
+      custom: {
+        aiModel: 'claude-sonnet-4-20250514',
+        delay: 15
+      }
     }
   });
   
@@ -142,8 +151,12 @@ function App() {
   // Save dark mode preference to localStorage
   useEffect(() => {
     localStorage.setItem('qookie-dark-mode', JSON.stringify(darkMode));
-    // Update document body background
-    document.body.style.backgroundColor = darkMode ? '#111827' : '#f8fafc';
+    // Apply dark class to html element for Tailwind
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }, [darkMode]);
 
   const toggleDarkMode = () => {
@@ -701,7 +714,8 @@ ${caseStudy.collectionNotes}
   const runGlobalBatchProcess = async () => {
     console.log('🌍 Process All button clicked!');
     console.log('Partnerships:', partnerships?.length || 0);
-    console.log('Selected model:', selectedModel);
+    console.log('Selected model:', getCurrentAIModel());
+    console.log('Settings:', settings);
     
     if (!partnerships || partnerships.length === 0) {
       console.error('❌ No partnerships available');
@@ -714,7 +728,7 @@ ${caseStudy.collectionNotes}
       
       // Initialize the global batch process
       console.log('📋 Initializing global batch...');
-      initializeGlobalBatch(partnerships, selectedModel);
+      initializeGlobalBatch(partnerships, getCurrentAIModel());
       
       console.log('▶️ Starting global batch...');
       startGlobalBatch();
@@ -1146,27 +1160,30 @@ ${caseStudy.collectionNotes}
 
   // Settings calculation functions
   const getCurrentDelay = () => {
-    switch (settings.rateLimitMode) {
-      case 'uncapped': return settings.delays.uncapped;
-      case 'conservative': return settings.delays.conservative;
-      case 'custom': return settings.delays.custom;
-      default: return settings.delays.uncapped;
-    }
+    return settings.modes[settings.rateLimitMode]?.delay || 2;
+  };
+
+  const getCurrentAIModel = () => {
+    return settings.modes[settings.rateLimitMode]?.aiModel || 'claude-sonnet-4-20250514';
   };
 
   const calculateEstimatedCost = (mode = settings.rateLimitMode) => {
-    const partnershipCount = partnerships.length;
+    const partnershipCount = partnerships?.length || 0;
     if (partnershipCount === 0) return '0.00';
 
     // Rough cost estimates per partnership (3 API calls each)
     const costPerPartnership = {
-      'claude-sonnet-4-20250514': 0.45,  // Premium Claude
-      'claude-3-5-sonnet-20241022': 0.25, // Standard Claude  
-      'gpt-4': 0.55,                      // Premium GPT
-      'gpt-3.5-turbo': 0.08               // Budget GPT
+      'claude-opus-4-20250514': 0.60,     // Most Capable
+      'claude-sonnet-4-20250514': 0.45,   // Latest & Recommended
+      'claude-3-5-sonnet-20241022': 0.25, // Standard Claude
+      'claude-3-5-haiku-20241022': 0.15,  // Fast & Smart
+      'claude-3-opus-20240229': 0.50,     // Claude 3 Opus
+      'claude-3-sonnet-20240229': 0.20,   // Claude 3 Sonnet
+      'claude-3-haiku-20240307': 0.10     // Fastest
     };
 
-    const baseCost = (costPerPartnership[settings.aiModel] || 0.25) * partnershipCount;
+    const selectedModel = settings.modes[mode]?.aiModel || 'claude-sonnet-4-20250514';
+    const baseCost = (costPerPartnership[selectedModel] || 0.25) * partnershipCount;
     
     // Conservative mode might use more tokens due to retries/slower processing
     const modeMultiplier = {
@@ -1180,7 +1197,7 @@ ${caseStudy.collectionNotes}
   };
 
   const calculateTotalTime = () => {
-    const partnershipCount = partnerships.length;
+    const partnershipCount = partnerships?.length || 0;
     if (partnershipCount === 0) return '0 minutes';
 
     const delaySeconds = getCurrentDelay();
@@ -1210,7 +1227,7 @@ ${caseStudy.collectionNotes}
       
       console.log('Pushing to GitHub:', filename);
 
-      const response = await fetch('http://localhost:3002/api/github/push', {
+      const response = await fetch('http://localhost:3556/api/github/push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1279,7 +1296,7 @@ ${caseStudy.collectionNotes}
     try {
       console.log('Overwriting GitHub files:', filename);
 
-      const response = await fetch('http://localhost:3002/api/github/overwrite', {
+      const response = await fetch('http://localhost:3556/api/github/overwrite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1340,7 +1357,7 @@ ${caseStudy.collectionNotes}
         historyCount: sessionData.researchHistory.length
       });
 
-      const response = await fetch('http://localhost:3002/api/github/backup-session', {
+      const response = await fetch('http://localhost:3556/api/github/backup-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionData })
@@ -1366,7 +1383,7 @@ ${caseStudy.collectionNotes}
 
   const loadAvailableBackups = async () => {
     try {
-      const response = await fetch('http://localhost:3002/api/github/list-backups');
+      const response = await fetch('http://localhost:3556/api/github/list-backups');
       const data = await response.json();
 
       if (!response.ok) {
@@ -1389,7 +1406,7 @@ ${caseStudy.collectionNotes}
     try {
       console.log('Restoring session from:', backupFilename);
 
-      const response = await fetch('http://localhost:3002/api/github/restore-session', {
+      const response = await fetch('http://localhost:3556/api/github/restore-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ backupFilename })
@@ -1449,64 +1466,42 @@ ${caseStudy.collectionNotes}
           }
         `}
       </style>
-      <div className={darkMode ? 'dark' : ''} style={{ 
-        minHeight: '100vh', 
-        backgroundColor: darkMode ? '#111827' : '#f8fafc', 
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' 
-      }}>
+      <div className={`min-h-screen bg-gray-50 dark:bg-gray-900 ${darkMode ? 'dark' : ''}`}>
       {/* Header */}
-      <div style={{
-        backgroundColor: darkMode ? '#1f2937' : 'white',
-        borderBottom: darkMode ? '1px solid #374151' : '1px solid #e2e8f0',
-        padding: '20px 0',
-        marginBottom: '30px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-      }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h1 style={{ 
-                margin: 0, 
-                fontSize: '28px', 
-                fontWeight: '700',
-                color: darkMode ? '#f8fafc' : '#1e293b'
-              }}>
-                🍪 Qookie
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm mb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-20">
+            {/* Logo & Title */}
+            <div className="flex-shrink-0">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                🍪 <span className="text-quantum-600 dark:text-quantum-400">Qookie</span>
               </h1>
-              <p style={{ 
-                margin: '8px 0 0 0', 
-                color: darkMode ? '#9ca3af' : '#64748b', 
-                fontSize: '16px' 
-              }}>
-                Generate AI-powered case studies from quantum computing partnerships
+              <p className="text-gray-600 dark:text-gray-400 text-sm mt-1 ml-10">
+                AI-powered quantum computing case studies
               </p>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-              {/* Session Backup/Restore */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Navigation */}
+            <nav className="flex items-center space-x-2">
+              {/* Session Management Group */}
+              <div className="flex items-center space-x-1 px-3 py-1 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                 <button
                   onClick={backupSession}
                   disabled={backupStatus === 'backing-up'}
-                  style={{
-                    padding: '8px 16px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    border: darkMode ? '1px solid #4b5563' : '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    backgroundColor: backupStatus === 'backing-up' ? (darkMode ? '#374151' : '#f3f4f6') : 
-                                    backupStatus === 'success' ? '#dcfce7' :
-                                    backupStatus === 'error' ? '#fef2f2' : (darkMode ? '#4b5563' : 'white'),
-                    color: backupStatus === 'backing-up' ? '#6b7280' :
-                           backupStatus === 'success' ? '#166534' :
-                           backupStatus === 'error' ? '#991b1b' : (darkMode ? '#f9fafb' : '#374151'),
-                    cursor: backupStatus === 'backing-up' ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s'
-                  }}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 ${
+                    backupStatus === 'backing-up' 
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                      : backupStatus === 'success'
+                      ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                      : backupStatus === 'error'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300 hover:border-gray-400 dark:bg-gray-600 dark:text-gray-200 dark:border-gray-500 dark:hover:bg-gray-500'
+                  }`}
+                  title="Backup current session to GitHub"
                 >
-                  {backupStatus === 'backing-up' ? '⏳ Backing up...' :
-                   backupStatus === 'success' ? '✅ Backed up' :
-                   backupStatus === 'error' ? '❌ Backup failed' : '💾 Backup Session'}
+                  {backupStatus === 'backing-up' ? '⏳' :
+                   backupStatus === 'success' ? '✅' :
+                   backupStatus === 'error' ? '❌' : '💾'}
                 </button>
 
                 <button
@@ -1515,89 +1510,115 @@ ${caseStudy.collectionNotes}
                     loadAvailableBackups();
                   }}
                   disabled={restoreStatus === 'restoring'}
-                  style={{
-                    padding: '8px 16px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    border: darkMode ? '1px solid #4b5563' : '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    backgroundColor: restoreStatus === 'restoring' ? (darkMode ? '#374151' : '#f3f4f6') : 
-                                    restoreStatus === 'success' ? '#dcfce7' :
-                                    restoreStatus === 'error' ? '#fef2f2' : (darkMode ? '#4b5563' : 'white'),
-                    color: restoreStatus === 'restoring' ? '#6b7280' :
-                           restoreStatus === 'success' ? '#166534' :
-                           restoreStatus === 'error' ? '#991b1b' : (darkMode ? '#f9fafb' : '#374151'),
-                    cursor: restoreStatus === 'restoring' ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s'
-                  }}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 ${
+                    restoreStatus === 'restoring' 
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                      : restoreStatus === 'success'
+                      ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                      : restoreStatus === 'error'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300 hover:border-gray-400 dark:bg-gray-600 dark:text-gray-200 dark:border-gray-500 dark:hover:bg-gray-500'
+                  }`}
+                  title="Restore session from GitHub backup"
                 >
-                  {restoreStatus === 'restoring' ? '⏳ Restoring...' :
-                   restoreStatus === 'success' ? '✅ Restored' :
-                   restoreStatus === 'error' ? '❌ Restore failed' : '📥 Restore Session'}
+                  {restoreStatus === 'restoring' ? '⏳' :
+                   restoreStatus === 'success' ? '✅' :
+                   restoreStatus === 'error' ? '❌' : '📥'}
                 </button>
               </div>
 
-              {/* Model Selection */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <label style={{ 
-                  fontSize: '14px', 
-                  fontWeight: '500', 
-                  color: darkMode ? '#d1d5db' : '#374151' 
-                }}>
-                  Claude Model:
-                </label>
-                <select 
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  style={{
-                    padding: '8px 12px',
-                    fontSize: '14px',
-                    border: darkMode ? '1px solid #4b5563' : '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    backgroundColor: darkMode ? '#374151' : 'white',
-                    color: darkMode ? '#f9fafb' : '#374151',
-                    cursor: 'pointer',
-                    minWidth: '260px'
-                  }}
+              {/* Data Management Group */}
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => loadPartnerships()}
+                  disabled={globalBatchRunning}
+                  className="btn-quantum btn-secondary px-4 py-2 text-sm"
+                  title="Refresh partnerships from CSV"
                 >
-                  <option value="claude-opus-4-20250514">Claude 4 Opus (Most Capable)</option>
-                  <option value="claude-sonnet-4-20250514">Claude 4 Sonnet (Latest & Recommended)</option>
-                  <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
-                  <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku (Fast & Smart)</option>
-                  <option value="claude-3-opus-20240229">Claude 3 Opus</option>
-                  <option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option>
-                  <option value="claude-3-haiku-20240307">Claude 3 Haiku (Fastest)</option>
-                </select>
+                  🔄 Refresh
+                </button>
+
+                <button
+                  onClick={() => document.getElementById('csvFileInput').click()}
+                  disabled={globalBatchRunning}
+                  className="btn-quantum btn-success px-4 py-2 text-sm"
+                  title="Import new CSV file"
+                >
+                  📄 Import
+                </button>
               </div>
 
-              {/* Dark Mode Toggle */}
-              <button
-                onClick={toggleDarkMode}
-                style={{
-                  padding: '8px',
-                  fontSize: '18px',
-                  border: darkMode ? '1px solid #4b5563' : '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  backgroundColor: darkMode ? '#374151' : '#f9fafb',
-                  color: darkMode ? '#fbbf24' : '#6b7280',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  width: '40px',
-                  height: '40px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              >
-                {darkMode ? '☀️' : '🌙'}
-              </button>
-            </div>
+              {/* Tools Group */}
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setShowPromptsModal(true)}
+                  className="btn-quantum btn-purple px-4 py-2 text-sm"
+                  title="View all AI prompts and commands"
+                >
+                  📝 Prompts
+                </button>
+
+                <button
+                  onClick={() => setShowSettingsModal(true)}
+                  disabled={globalBatchRunning}
+                  className="btn-quantum btn-warning px-4 py-2 text-sm"
+                  title="Configure batch processing settings"
+                >
+                  ⚙️ Settings
+                </button>
+
+                <button
+                  onClick={toggleDarkMode}
+                  className="btn-quantum btn-secondary w-10 h-10 p-0 text-lg"
+                  title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                >
+                  {darkMode ? '☀️' : '🌙'}
+                </button>
+              </div>
+
+              {/* Main Action */}
+              <div className="ml-4 pl-4 border-l border-gray-200 dark:border-gray-600">
+                {!globalBatchRunning ? (
+                  <button
+                    onClick={runGlobalBatchProcess}
+                    disabled={!partnerships || partnerships.length === 0}
+                    className="btn-quantum btn-danger px-6 py-2 text-sm font-semibold"
+                    title="Process all partnerships with AI"
+                  >
+                    🌍 Process All
+                  </button>
+                ) : (
+                  <div className="flex items-center space-x-1">
+                    {!globalBatchPaused ? (
+                      <button
+                        onClick={pauseGlobalBatch}
+                        className="btn-quantum btn-warning px-3 py-2 text-xs"
+                      >
+                        ⏸️
+                      </button>
+                    ) : (
+                      <button
+                        onClick={resumeGlobalBatch}
+                        className="btn-quantum btn-success px-3 py-2 text-xs"
+                      >
+                        ▶️
+                      </button>
+                    )}
+                    <button
+                      onClick={stopGlobalBatch}
+                      className="btn-quantum btn-danger px-3 py-2 text-xs"
+                    >
+                      🛑
+                    </button>
+                  </div>
+                )}
+              </div>
+            </nav>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 20px' }}>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Two-column layout */}
         <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', gap: '30px', alignItems: 'start' }}>
           
@@ -1626,215 +1647,21 @@ ${caseStudy.collectionNotes}
                 Partnerships ({partnerships.length})
               </h2>
               
-              {/* CSV Controls & Global Batch Processing */}
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                {/* CSV Refresh Button */}
-                <button
-                  onClick={() => loadPartnerships()}
-                  disabled={globalBatchRunning}
-                  style={{
-                    padding: '6px 12px',
-                    backgroundColor: !globalBatchRunning ? '#3b82f6' : '#6b7280',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: '500',
-                    cursor: !globalBatchRunning ? 'pointer' : 'not-allowed',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!globalBatchRunning) {
-                      e.target.style.backgroundColor = '#2563eb';
-                      e.target.style.transform = 'translateY(-1px)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!globalBatchRunning) {
-                      e.target.style.backgroundColor = '#3b82f6';
-                      e.target.style.transform = 'translateY(0px)';
-                    }
-                  }}
-                  title="Refresh partnerships from CSV file"
-                >
-                  🔄 Refresh
-                </button>
-
-                {/* CSV Import Button */}
-                <button
-                  onClick={() => document.getElementById('csvFileInput').click()}
-                  disabled={globalBatchRunning}
-                  style={{
-                    padding: '6px 12px',
-                    backgroundColor: !globalBatchRunning ? '#8b5cf6' : '#6b7280',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: '500',
-                    cursor: !globalBatchRunning ? 'pointer' : 'not-allowed',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!globalBatchRunning) {
-                      e.target.style.backgroundColor = '#7c3aed';
-                      e.target.style.transform = 'translateY(-1px)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!globalBatchRunning) {
-                      e.target.style.backgroundColor = '#8b5cf6';
-                      e.target.style.transform = 'translateY(0px)';
-                    }
-                  }}
-                  title="Import new CSV file"
-                >
-                  📄 Import
-                </button>
-
-                {/* Hidden file input */}
-                <input
-                  id="csvFileInput"
-                  type="file"
-                  accept=".csv"
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      importCSVFile(file);
-                      // Reset the input so the same file can be selected again
-                      e.target.value = '';
-                    }
-                  }}
-                />
-
-                {/* Settings Button */}
-                <button
-                  onClick={() => setShowSettingsModal(true)}
-                  disabled={globalBatchRunning}
-                  style={{
-                    padding: '6px 12px',
-                    backgroundColor: !globalBatchRunning ? '#f59e0b' : '#6b7280',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: '500',
-                    cursor: !globalBatchRunning ? 'pointer' : 'not-allowed',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!globalBatchRunning) {
-                      e.target.style.backgroundColor = '#d97706';
-                      e.target.style.transform = 'translateY(-1px)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!globalBatchRunning) {
-                      e.target.style.backgroundColor = '#f59e0b';
-                      e.target.style.transform = 'translateY(0px)';
-                    }
-                  }}
-                  title="Configure batch processing settings"
-                >
-                  ⚙️ Settings
-                </button>
-
-                {!globalBatchRunning ? (
-                  <button
-                    onClick={runGlobalBatchProcess}
-                    disabled={!partnerships || partnerships.length === 0}
-                    style={{
-                      padding: '6px 12px',
-                      backgroundColor: partnerships && partnerships.length > 0 ? '#10b981' : '#6b7280',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      fontWeight: '500',
-                      cursor: partnerships && partnerships.length > 0 ? 'pointer' : 'not-allowed',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (partnerships && partnerships.length > 0) {
-                        e.target.style.backgroundColor = '#059669';
-                        e.target.style.transform = 'translateY(-1px)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (partnerships && partnerships.length > 0) {
-                        e.target.style.backgroundColor = '#10b981';
-                        e.target.style.transform = 'translateY(0px)';
-                      }
-                    }}
-                  >
-                    🌍 Process All
-                  </button>
-                ) : (
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    {!globalBatchPaused ? (
-                      <button
-                        onClick={pauseGlobalBatchProcess}
-                        style={{
-                          padding: '6px 12px',
-                          backgroundColor: '#f59e0b',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          fontWeight: '500',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        ⏸️ Pause
-                      </button>
-                    ) : (
-                      <button
-                        onClick={resumeGlobalBatchProcess}
-                        style={{
-                          padding: '6px 12px',
-                          backgroundColor: '#10b981',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          fontWeight: '500',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        ▶️ Resume
-                      </button>
-                    )}
-                    <button
-                      onClick={stopGlobalBatchProcess}
-                      style={{
-                        padding: '6px 12px',
-                        backgroundColor: '#ef4444',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: '500',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      🛑 Stop
-                    </button>
-                  </div>
-                )}
-              </div>
+              {/* Hidden file input */}
+              <input
+                id="csvFileInput"
+                type="file"
+                accept=".csv"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    importCSVFile(file);
+                    // Reset the input so the same file can be selected again
+                    e.target.value = '';
+                  }
+                }}
+              />
             </div>
 
             {/* Global Batch Progress Display */}
@@ -2223,25 +2050,7 @@ ${caseStudy.collectionNotes}
                       e.stopPropagation();
                       handleGenerateCaseStudy(selectedPartnership, true);
                     }}
-                    style={{
-                      padding: '6px 12px',
-                      backgroundColor: '#f59e0b',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      fontWeight: '500',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.backgroundColor = '#d97706';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.backgroundColor = '#f59e0b';
-                    }}
+                    style={btn('warning', 'sm', false, darkMode)}
                   >
                     🔄 Regenerate
                   </button>
@@ -3114,7 +2923,7 @@ ${caseStudy.collectionNotes}
             </div>
           </div>
         )}
-      </div>
+      </main>
     </div>
 
     {/* Settings Modal */}
@@ -3184,8 +2993,17 @@ ${caseStudy.collectionNotes}
               AI Model
             </label>
             <select
-              value={settings.aiModel}
-              onChange={(e) => setSettings({...settings, aiModel: e.target.value})}
+              value={getCurrentAIModel()}
+              onChange={(e) => setSettings({
+                ...settings,
+                modes: {
+                  ...settings.modes,
+                  [settings.rateLimitMode]: {
+                    ...settings.modes[settings.rateLimitMode],
+                    aiModel: e.target.value
+                  }
+                }
+              })}
               style={{
                 width: '100%',
                 padding: '8px 12px',
@@ -3196,10 +3014,13 @@ ${caseStudy.collectionNotes}
                 fontSize: '14px'
               }}
             >
-              <option value="claude-sonnet-4-20250514">Claude 4 Sonnet (Premium)</option>
+              <option value="claude-opus-4-20250514">Claude 4 Opus (Most Capable)</option>
+              <option value="claude-sonnet-4-20250514">Claude 4 Sonnet (Latest & Recommended)</option>
               <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
-              <option value="gpt-4">GPT-4 (Premium)</option>
-              <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Budget)</option>
+              <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku (Fast & Smart)</option>
+              <option value="claude-3-opus-20240229">Claude 3 Opus</option>
+              <option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option>
+              <option value="claude-3-haiku-20240307">Claude 3 Haiku (Fastest)</option>
             </select>
           </div>
 
@@ -3232,7 +3053,7 @@ ${caseStudy.collectionNotes}
                     color: darkMode ? '#f3f4f6' : '#1f2937',
                     marginBottom: '4px'
                   }}>
-                    📈 Uncapped ({settings.delays.uncapped}s delay)
+                    📈 Uncapped ({settings.modes.uncapped.delay}s delay)
                   </div>
                   <div style={{
                     fontSize: '12px',
@@ -3268,7 +3089,7 @@ ${caseStudy.collectionNotes}
                     color: darkMode ? '#f3f4f6' : '#1f2937',
                     marginBottom: '4px'
                   }}>
-                    🛡️ Conservative ({settings.delays.conservative}s delay)
+                    🛡️ Conservative ({settings.modes.conservative.delay}s delay)
                   </div>
                   <div style={{
                     fontSize: '12px',
@@ -3318,12 +3139,12 @@ ${caseStudy.collectionNotes}
                         type="range"
                         min="2"
                         max="300"
-                        value={settings.delays.custom}
+                        value={settings.modes.custom.delay}
                         onChange={(e) => {
                           const newDelay = parseInt(e.target.value);
                           setSettings({
                             ...settings,
-                            delays: { ...settings.delays, custom: newDelay }
+                            modes: { ...settings.modes, custom: { ...settings.modes.custom, delay: newDelay } }
                           });
                         }}
                         style={{ flex: 1 }}
@@ -3332,12 +3153,12 @@ ${caseStudy.collectionNotes}
                         type="number"
                         min="2"
                         max="300"
-                        value={settings.delays.custom}
+                        value={settings.modes.custom.delay}
                         onChange={(e) => {
                           const newDelay = parseInt(e.target.value) || 2;
                           setSettings({
                             ...settings,
-                            delays: { ...settings.delays, custom: Math.min(300, Math.max(2, newDelay)) }
+                            modes: { ...settings.modes, custom: { ...settings.modes.custom, delay: Math.min(300, Math.max(2, newDelay)) } }
                           });
                         }}
                         style={{
@@ -3389,7 +3210,7 @@ ${caseStudy.collectionNotes}
               color: darkMode ? '#9ca3af' : '#6b7280',
               lineHeight: '1.4'
             }}>
-              <div>• {partnerships.length} partnerships</div>
+              <div>• {partnerships?.length || 0} partnerships</div>
               <div>• ~{calculateTotalTime()} processing time</div>
               <div>• Estimated cost: ${calculateEstimatedCost()}</div>
               <div>• {getCurrentDelay()}s between partnerships</div>
@@ -3404,34 +3225,17 @@ ${caseStudy.collectionNotes}
           }}>
             <button
               onClick={() => setShowSettingsModal(false)}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '6px',
-                border: darkMode ? '1px solid #4b5563' : '1px solid #d1d5db',
-                backgroundColor: darkMode ? '#374151' : 'white',
-                color: darkMode ? '#f8fafc' : '#1e293b',
-                fontSize: '14px',
-                cursor: 'pointer'
-              }}
+              style={btn('secondary', 'md', false, darkMode)}
             >
               Cancel
             </button>
             <button
               onClick={() => {
                 // Save settings (could persist to localStorage here)
-                setSelectedModel(settings.aiModel);
+                setSelectedModel(getCurrentAIModel());
                 setShowSettingsModal(false);
               }}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '6px',
-                border: 'none',
-                backgroundColor: '#3b82f6',
-                color: 'white',
-                fontSize: '14px',
-                fontWeight: '500',
-                cursor: 'pointer'
-              }}
+              style={btn('primary', 'md', false, darkMode)}
             >
               Save Settings
             </button>
@@ -3568,46 +3372,14 @@ ${caseStudy.collectionNotes}
           }}>
             <button
               onClick={exportAllToZip}
-              style={{
-                padding: '16px 24px',
-                borderRadius: '8px',
-                border: 'none',
-                backgroundColor: '#3b82f6',
-                color: 'white',
-                fontSize: '16px',
-                fontWeight: '500',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                transition: 'background-color 0.2s ease'
-              }}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#2563eb'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = '#3b82f6'}
+              style={btn('primary', 'lg', false, darkMode)}
             >
               📦 Export All to Files
             </button>
             
             <button
               onClick={pushAllToGitHub}
-              style={{
-                padding: '16px 24px',
-                borderRadius: '8px',
-                border: 'none',
-                backgroundColor: '#10b981',
-                color: 'white',
-                fontSize: '16px',
-                fontWeight: '500',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                transition: 'background-color 0.2s ease'
-              }}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#059669'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = '#10b981'}
+              style={btn('success', 'lg', false, darkMode)}
             >
               🔗 Push All to GitHub
             </button>
@@ -3692,16 +3464,327 @@ ${caseStudy.collectionNotes}
                 setShowBatchCompleteModal(false);
                 setBatchResults(null);
               }}
+              style={btn('secondary', 'md', false, darkMode)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Prompts Modal */}
+    {showPromptsModal && (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        padding: '20px'
+      }}>
+        <div style={{
+          backgroundColor: darkMode ? '#1f2937' : '#ffffff',
+          borderRadius: '12px',
+          padding: '24px',
+          width: '90%',
+          maxWidth: '1000px',
+          maxHeight: '90vh',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          border: darkMode ? '1px solid #374151' : '1px solid #e5e7eb'
+        }}>
+          {/* Modal Header */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '20px',
+            borderBottom: darkMode ? '1px solid #374151' : '1px solid #e5e7eb',
+            paddingBottom: '16px'
+          }}>
+            <h2 style={{
+              color: darkMode ? '#f8fafc' : '#1e293b',
+              fontSize: '20px',
+              fontWeight: '600',
+              margin: 0
+            }}>
+              📝 AI Prompts & Commands
+            </h2>
+            <button
+              onClick={() => setShowPromptsModal(false)}
               style={{
-                padding: '12px 24px',
-                borderRadius: '6px',
-                border: darkMode ? '1px solid #4b5563' : '1px solid #d1d5db',
-                backgroundColor: darkMode ? '#374151' : 'white',
-                color: darkMode ? '#f8fafc' : '#1e293b',
-                fontSize: '14px',
-                fontWeight: '500',
-                cursor: 'pointer'
+                background: 'none',
+                border: 'none',
+                color: darkMode ? '#9ca3af' : '#6b7280',
+                fontSize: '24px',
+                cursor: 'pointer',
+                padding: '4px'
               }}
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Modal Content */}
+          <div style={{
+            flex: 1,
+            overflow: 'auto'
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '24px'
+            }}>
+              
+              {/* Research Prompts Section */}
+              <div>
+                <h3 style={{
+                  color: darkMode ? '#f8fafc' : '#1e293b',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  🔬 Research Case Study Prompt
+                </h3>
+                <div style={{
+                  backgroundColor: darkMode ? '#374151' : '#f9fafb',
+                  border: darkMode ? '1px solid #4b5563' : '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  padding: '16px'
+                }}>
+                  <div style={{
+                    fontSize: '12px',
+                    fontFamily: 'monospace',
+                    color: darkMode ? '#e5e7eb' : '#4b5563',
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: '1.4',
+                    maxHeight: '200px',
+                    overflow: 'auto'
+                  }}>
+{`You are a quantum computing industry researcher tasked with creating a comprehensive case study.
+
+CRITICAL TIMELINE RESEARCH: You must actively research and identify specific dates, timelines, and milestones for this partnership, even if not provided in the source data.
+
+RESEARCH REQUIREMENTS:
+1. Conduct thorough research using publicly available information
+2. Focus on factual, verifiable information only
+3. CRITICAL: Research and identify the actual partnership timeline, announcement date, project phases, and key milestones
+4. Include specific technical details about quantum implementation
+5. Provide quantifiable business impact metrics where available
+6. Maintain professional, academic tone throughout
+7. Include proper citations and references
+
+TIMELINE RESEARCH INSTRUCTIONS:
+- If partnership year is missing or 'TBD', you MUST research and find:
+  • Partnership announcement date
+  • Project initiation date
+  • Key milestone dates
+  • Current status and timeline
+- Look for press releases, company announcements, research papers, and news articles
+- Include specific months/quarters when possible`}
+                  </div>
+                </div>
+              </div>
+
+              {/* Server API Prompt Section */}
+              <div>
+                <h3 style={{
+                  color: darkMode ? '#f8fafc' : '#1e293b',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  🔗 API Research Prompt  
+                </h3>
+                <div style={{
+                  backgroundColor: darkMode ? '#374151' : '#f9fafb',
+                  border: darkMode ? '1px solid #4b5563' : '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  padding: '16px'
+                }}>
+                  <div style={{
+                    fontSize: '12px',
+                    fontFamily: 'monospace',
+                    color: darkMode ? '#e5e7eb' : '#4b5563',
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: '1.4',
+                    maxHeight: '200px',
+                    overflow: 'auto'
+                  }}>
+{`Research and create a comprehensive case study about the quantum computing partnership.
+
+CRITICAL TIMELINE RESEARCH: You must actively research and identify specific dates, timelines, and milestones for this partnership, even if not provided in the source data. Look for announcement dates, project phases, and current status.
+
+IMPORTANT: You must respond with ONLY valid JSON. No markdown, no explanations, no text before or after the JSON.
+
+Return this exact JSON structure:
+{
+  "title": "Partnership title",
+  "summary": "2-3 sentence executive summary",
+  "introduction": "Detailed introduction (200+ words) - MUST include specific partnership announcement date and timeline details",
+  "implementation": "How was it implemented? (200+ words) - MUST include project phases with specific dates/timeframes",
+  "metadata": {
+    "announcement_date": "YYYY-MM-DD format - research and find actual date",
+    "project_timeline": "Brief description of project phases and timing"
+  }
+}
+
+TIMELINE RESEARCH REQUIREMENTS:
+- If year is missing, you MUST research and find the partnership announcement date
+- Look for press releases, company blogs, research papers, and news coverage
+- Include specific months/quarters when possible
+- Document project phases and current status`}
+                  </div>
+                </div>
+              </div>
+
+              {/* Metadata Analysis Prompt Section */}
+              <div>
+                <h3 style={{
+                  color: darkMode ? '#f8fafc' : '#1e293b',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  🏷️ Metadata Analysis Prompt
+                </h3>
+                <div style={{
+                  backgroundColor: darkMode ? '#374151' : '#f9fafb',
+                  border: darkMode ? '1px solid #4b5563' : '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  padding: '16px'
+                }}>
+                  <div style={{
+                    fontSize: '12px',
+                    fontFamily: 'monospace',
+                    color: darkMode ? '#e5e7eb' : '#4b5563',
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: '1.4',
+                    maxHeight: '200px',
+                    overflow: 'auto'
+                  }}>
+{`You are analyzing a quantum computing case study. Your task is to match the case study content against provided reference lists and return ONLY a JSON object with the analysis results.
+
+CASE STUDY TO ANALYZE:
+[Case study content is dynamically inserted here]
+
+REFERENCE LISTS TO MATCH AGAINST:
+Algorithms: [Dynamic list of quantum algorithms]
+Industries: [Dynamic list of industries]
+Personas: [Dynamic list of personas]
+
+Your task is to analyze the case study content and match it against the reference lists. Return ONLY a JSON object with these exact fields:
+
+{
+  "algorithms": ["algorithm1", "algorithm2"],
+  "industries": ["industry1", "industry2"], 
+  "personas": ["persona1", "persona2"],
+  "confidence_score": 0.85,
+  "analysis_notes": "Brief notes about the analysis and any assumptions made"
+}
+
+IMPORTANT MATCHING RULES:
+1. ONLY include items from the reference lists provided above
+2. Do not invent new items that aren't in the reference lists
+3. Match based on semantic meaning, not just exact text matches
+4. Include confidence score between 0.0 and 1.0`}
+                  </div>
+                </div>
+              </div>
+
+              {/* References Collection Section */}
+              <div>
+                <h3 style={{
+                  color: darkMode ? '#f8fafc' : '#1e293b',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  📚 References Collection Prompt
+                </h3>
+                <div style={{
+                  backgroundColor: darkMode ? '#374151' : '#f9fafb',
+                  border: darkMode ? '1px solid #4b5563' : '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  padding: '16px'
+                }}>
+                  <div style={{
+                    fontSize: '12px',
+                    fontFamily: 'monospace',
+                    color: darkMode ? '#e5e7eb' : '#4b5563',
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: '1.4',
+                    maxHeight: '200px',
+                    overflow: 'auto'
+                  }}>
+{`Find comprehensive references and further reading materials for the quantum computing partnership.
+
+IMPORTANT: You must respond with ONLY valid JSON. No markdown, no explanations, no text before or after the JSON.
+
+Return this exact JSON structure:
+{
+  "scientific_references": [
+    {
+      "title": "Academic paper or research title",
+      "url": "https://example.com/paper",
+      "authors": "Author names",
+      "year": "2023",
+      "type": "academic_paper|conference_paper|preprint"
+    }
+  ],
+  "further_reading": [
+    {
+      "title": "Article or resource title", 
+      "url": "https://example.com/article",
+      "source": "Publication or website name",
+      "type": "press_release|blog_post|news_article|technical_documentation"
+    }
+  ]
+}
+
+RESEARCH REQUIREMENTS:
+- Focus on academic and scientific sources for scientific_references
+- Include press releases, news coverage, and technical blogs for further_reading  
+- Ensure all URLs are actual, working links to real content
+- Include recent publications and coverage (prefer 2022-2024)
+- Prioritize authoritative sources and official company announcements`}
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Modal Actions */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginTop: '20px',
+            paddingTop: '16px',
+            borderTop: darkMode ? '1px solid #374151' : '1px solid #e5e7eb'
+          }}>
+            <button
+              onClick={() => setShowPromptsModal(false)}
+              style={btn('secondary', 'md', false, darkMode)}
             >
               Close
             </button>
