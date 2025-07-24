@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCaseStudyStore, useMetadataStore, useReferencesStore, useBatchStore, useGlobalBatchStore } from './stores';
 import { btn } from './styles/buttonStyles';
+import ExportPreviewModal from './components/ExportPreviewModal';
 
 function App() {
   const [partnerships, setPartnerships] = useState([]);
@@ -80,6 +81,9 @@ function App() {
     getSessionReport,
     addLog
   } = useGlobalBatchStore();
+  
+  // Export preview modal state
+  const [showExportPreview, setShowExportPreview] = useState(false);
   
   // Derived state
   const caseStudy = selectedPartnership ? getCaseStudy(selectedPartnership.id) : null;
@@ -1068,6 +1072,152 @@ ${caseStudy.collectionNotes}
     } catch (error) {
       console.error('❌ Error pushing to GitHub:', error);
       setError(`Failed to push to GitHub: ${error.message}`);
+    }
+  };
+
+  // Export all case studies in OpenQase-compatible format with enhanced validation
+  const exportAllToOpenQase = async () => {
+    if (!batchResults) return;
+    
+    try {
+      console.log('🔄 Creating OpenQase export for', batchResults.processedPartnerships.length, 'partnerships');
+      
+      // Import validation and error handling utilities
+      const { validationEngine } = await import('./utils/ValidationEngine.js');
+      const { exportErrorHandler } = await import('./utils/ExportErrorHandler.js');
+      const { qualityScorer } = await import('./utils/QualityScorer.js');
+      
+      // Step 1: Run comprehensive validation
+      console.log('📊 Running export validation...');
+      const validation = validationEngine.validateCaseStudiesForExport(batchResults.processedPartnerships);
+      const qualityAnalysis = qualityScorer.calculateBatchQuality(batchResults.processedPartnerships);
+      
+      console.log('✅ Validation completed:', {
+        canExport: validation.summary.canExport,
+        overallQuality: Math.round(validation.summary.overallQuality),
+        criticalErrors: validation.criticalErrors.length,
+        warnings: validation.warnings.length
+      });
+      
+      // Step 2: Handle critical errors (block export)
+      if (!validation.summary.canExport) {
+        const errorSummary = validation.criticalErrors.slice(0, 3).map(e => `• ${e.partnership}: ${e.message}`).join('\n');
+        const additionalErrors = validation.criticalErrors.length > 3 ? `\n• ... and ${validation.criticalErrors.length - 3} more critical errors` : '';
+        
+        const errorMessage = `❌ Export blocked due to critical errors:\n\n${errorSummary}${additionalErrors}\n\nPlease fix these issues before exporting to ensure successful import into OpenQase.`;
+        
+        setError(errorMessage);
+        console.error('🚫 Export blocked:', validation.criticalErrors);
+        return;
+      }
+      
+      // Step 3: Show quality warnings (but allow export)
+      if (validation.warnings.length > 0) {
+        const warningCount = validation.warnings.length;
+        const qualityScore = Math.round(validation.summary.overallQuality);
+        
+        console.warn(`⚠️ Export proceeding with ${warningCount} quality warnings (Quality Score: ${qualityScore}%)`);
+        
+        // Log top warnings for user awareness
+        const topWarnings = validation.warnings.slice(0, 3).map(w => `• ${w.partnership}: ${w.message}`).join('\n');
+        const additionalWarnings = warningCount > 3 ? `\n• ... and ${warningCount - 3} more warnings` : '';
+        
+        console.log(`📋 Quality Warnings:\n${topWarnings}${additionalWarnings}`);
+      } else {
+        console.log('✅ All case studies passed quality validation');
+      }
+      
+      // Step 4: Use enhanced error handling for safe processing
+      console.log('🔄 Processing case studies with error handling...');
+      const processingResults = exportErrorHandler.safelyProcessCaseStudies(
+        batchResults.processedPartnerships,
+        (current, total) => {
+          if (current % 5 === 0) console.log(`📈 Processing ${current + 1}/${total} case studies...`);
+        }
+      );
+      
+      // Log processing results
+      console.log('📊 Processing completed:', {
+        successful: processingResults.successful.length,
+        failed: processingResults.failed.length,
+        warnings: processingResults.warnings.length
+      });
+      
+      // Handle processing failures
+      if (processingResults.failed.length > 0) {
+        const failureMessage = `⚠️ ${processingResults.failed.length} case studies failed processing and will be excluded from export:\n\n` +
+          processingResults.failed.slice(0, 3).map(f => `• ${f.partnership}: ${f.error}`).join('\n') +
+          (processingResults.failed.length > 3 ? `\n• ... and ${processingResults.failed.length - 3} more failures` : '');
+        
+        console.warn('Processing failures:', failureMessage);
+      }
+      
+      // Stop if no successful case studies
+      if (processingResults.successful.length === 0) {
+        setError('❌ No case studies could be successfully processed for export. Please check the data quality and try again.');
+        return;
+      }
+      
+      // Use successfully processed case studies (already in OpenQase format from error handler)
+      const transformedCaseStudies = processingResults.successful;
+      
+      // Create OpenQase export structure
+      const openQaseExport = {
+        export_metadata: {
+          export_version: "1.0",
+          export_date: new Date().toISOString(),
+          total_items: transformedCaseStudies.length,
+          export_type: "batch",
+          source: "qookie"
+        },
+        case_studies: transformedCaseStudies
+      };
+      
+      // Download the OpenQase export file
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+      const filename = `qookie-openqase-export-${timestamp}.json`;
+      
+      const blob = new Blob([JSON.stringify(openQaseExport, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      // Generate comprehensive export summary
+      const exportSummary = {
+        successful: transformedCaseStudies.length,
+        failed: processingResults.failed.length,
+        warnings: processingResults.warnings.length,
+        overallQuality: Math.round(validation.summary.overallQuality),
+        filename: filename,
+        fileSize: `${(JSON.stringify(openQaseExport).length / 1024).toFixed(1)}KB`
+      };
+      
+      console.log('✅ OpenQase export completed successfully');
+      console.log('📊 Export Summary:', exportSummary);
+      
+      // Show user-friendly completion message
+      const qualityBadge = exportSummary.overallQuality >= 85 ? '🟢 Excellent' :
+                          exportSummary.overallQuality >= 70 ? '🔵 Good' :
+                          exportSummary.overallQuality >= 50 ? '🟡 Fair' : '🟠 Needs Work';
+      
+      const successMessage = `✅ Export completed successfully!\n\n` +
+        `📁 File: ${filename}\n` +
+        `📊 Case Studies: ${exportSummary.successful} exported${exportSummary.failed > 0 ? `, ${exportSummary.failed} failed` : ''}\n` +
+        `🎯 Quality Score: ${exportSummary.overallQuality}% (${qualityBadge})\n` +
+        `📦 File Size: ${exportSummary.fileSize}\n\n` +
+        `Ready for import into OpenQase!`;
+      
+      // Could show this in a toast notification or modal in a real UI
+      console.log(successMessage);
+      
+    } catch (error) {
+      console.error('❌ Error exporting to OpenQase format:', error);
+      setError(`Failed to export to OpenQase format: ${error.message}`);
     }
   };
 
@@ -3419,6 +3569,13 @@ ${caseStudy.collectionNotes}
             </button>
             
             <button
+              onClick={() => setShowExportPreview(true)}
+              style={btn('info', 'lg', false, darkMode)}
+            >
+              🚀 Export for OpenQase
+            </button>
+            
+            <button
               onClick={() => {
                 const reportContent = generateProcessingReport(batchResults);
                 const blob = new Blob([reportContent], { type: 'text/markdown' });
@@ -3826,6 +3983,15 @@ RESEARCH REQUIREMENTS:
         </div>
       </div>
     )}
+
+    {/* Export Preview Modal */}
+    <ExportPreviewModal
+      isOpen={showExportPreview}
+      onClose={() => setShowExportPreview(false)}
+      batchResults={batchResults}
+      onExport={exportAllToOpenQase}
+      darkMode={darkMode}
+    />
     </>
   );
 }
