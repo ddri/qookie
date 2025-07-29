@@ -99,3 +99,18 @@ This is Qookie - a React-based quantum computing case study processor that gener
 ### Development Rules
 - User will start servers themselves - do not run server commands automatically
 - Only the user can run `npm run dev`, `node server.js`, or similar commands
+
+### CRITICAL: Code Change Discipline
+**THESE RULES MUST BE FOLLOWED TO PREVENT BREAKING WORKING FUNCTIONALITY**
+
+1. **Scope Discipline**: When given a specific task, ONLY touch files and functions directly related to that task. Do not modify unrelated working code.
+
+2. **Explicit Permission Required**: Before modifying ANY existing working functionality, ask "Should I modify [specific function/file] or leave it unchanged?"
+
+3. **Change Documentation**: Before starting work, clearly state exactly which files will be modified and why. Allow user to stop overreach.
+
+4. **Test Existing Functionality**: After ANY change, verify that unrelated features still work, not just the modified functionality.
+
+5. **Never "Improve" Working Code**: If functionality works correctly, do not modify it unless explicitly requested. Working code is sacred.
+
+6. **Minimal Changes Only**: Make the smallest possible change to achieve the requested goal. Avoid rewrites or "optimizations" of working systems.
