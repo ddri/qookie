@@ -5,22 +5,19 @@
  * that match the quality and format of the reference Barclays-Quantinuum case study.
  */
 
-export const ResearchPromptSystem = {
-  /**
-   * Generate a comprehensive research prompt for a quantum partnership
-   */
-  generateResearchPrompt: (partnership, referenceExample) => {
-    const prompt = `You are a quantum computing industry researcher tasked with creating a comprehensive case study about the partnership between ${partnership.company} and ${partnership.partner}. 
+// Default prompt templates - can be overridden by localStorage
+const DEFAULT_PROMPTS = {
+  researchPrompt: `You are a quantum computing industry researcher tasked with creating a comprehensive case study about the partnership between {company} and {partner}. 
 
 REFERENCE QUALITY STANDARD:
 Use the following reference case study as your quality benchmark. Your output should match this level of detail, technical accuracy, and professional presentation:
 
 ---
-${referenceExample}
+{referenceExample}
 ---
 
 RESEARCH TASK:
-Create a detailed case study about the quantum computing partnership between ${partnership.company} and ${partnership.partner}. 
+Create a detailed case study about the quantum computing partnership between {company} and {partner}. 
 
 RESEARCH REQUIREMENTS:
 1. Conduct thorough research using publicly available information
@@ -70,13 +67,13 @@ Your response must be structured as a valid JSON object with the following forma
     "verification_status": "verified|partially_verified|preliminary"
   },
   "metadata": {
-    "company": "${partnership.company}",
-    "partner": "${partnership.partner}",
-    "year": "${partnership.year || 'TBD'}",
+    "company": "{company}",
+    "partner": "{partner}",
+    "year": "{year}",
     "announcement_date": "Specific date when partnership was announced (YYYY-MM-DD format)",
     "project_start_date": "Date when project/collaboration began (YYYY-MM-DD format)",
     "timeline_status": "ongoing|completed|pilot_phase|commercial_deployment",
-    "research_date": "${new Date().toISOString().split('T')[0]}",
+    "research_date": "{researchDate}",
     "word_count": "approximate_word_count"
   }
 }
@@ -92,10 +89,10 @@ RESEARCH GUIDELINES:
 CRITICAL: Return ONLY valid JSON. Do not include any text before or after the JSON object.
 
 Partnership Details:
-- Quantum Company: ${partnership.company}
-- Commercial Partner: ${partnership.partner}
-- Year: ${partnership.year || 'RESEARCH REQUIRED - Find announcement/start dates'}
-- Notes: ${partnership.notes || 'No additional notes'}
+- Quantum Company: {company}
+- Commercial Partner: {partner}
+- Year: {year}
+- Notes: {notes}
 
 TIMELINE RESEARCH INSTRUCTIONS:
 - If partnership year is missing or 'TBD', you MUST research and find:
@@ -107,22 +104,15 @@ TIMELINE RESEARCH INSTRUCTIONS:
 - Include specific months/quarters when possible
 - If multiple phases exist, document each phase timeline
 
-BEGIN RESEARCH AND CASE STUDY GENERATION:`;
+BEGIN RESEARCH AND CASE STUDY GENERATION:`,
 
-    return prompt;
-  },
-
-  /**
-   * Generate a validation prompt to check case study quality
-   */
-  generateValidationPrompt: (caseStudy, referenceExample) => {
-    return `You are a quantum computing industry expert reviewing a case study for quality and accuracy.
+  validationPrompt: `You are a quantum computing industry expert reviewing a case study for quality and accuracy.
 
 REFERENCE STANDARD:
-${referenceExample}
+{referenceExample}
 
 CASE STUDY TO REVIEW:
-${JSON.stringify(caseStudy, null, 2)}
+{caseStudy}
 
 VALIDATION CRITERIA:
 1. Technical accuracy of quantum computing details
@@ -140,16 +130,11 @@ Provide a JSON response with:
   "business_relevance": "assessment of business impact",
   "overall_assessment": "summary evaluation",
   "meets_reference_standard": true/false
-}`;
-  },
+}`,
 
-  /**
-   * Generate a follow-up research prompt for additional details
-   */
-  generateFollowUpPrompt: (partnership, specificTopic) => {
-    return `You are conducting follow-up research on the quantum computing partnership between ${partnership.company} and ${partnership.partner}.
+  followUpPrompt: `You are conducting follow-up research on the quantum computing partnership between {company} and {partner}.
 
-FOCUS AREA: ${specificTopic}
+FOCUS AREA: {specificTopic}
 
 Please provide detailed information specifically about this aspect of the partnership. Include:
 - Technical specifications
@@ -159,7 +144,87 @@ Please provide detailed information specifically about this aspect of the partne
 - Key personnel involved
 - References and sources
 
-Respond in JSON format with detailed information about this specific topic.`;
+Respond in JSON format with detailed information about this specific topic.`
+};
+
+// Get custom prompts from localStorage or use defaults
+const getPromptTemplate = (promptName) => {
+  const customPrompts = JSON.parse(localStorage.getItem('qookie-custom-prompts') || '{}');
+  return customPrompts[promptName] || DEFAULT_PROMPTS[promptName];
+};
+
+// Save custom prompt to localStorage
+export const saveCustomPrompt = (promptName, promptText) => {
+  const customPrompts = JSON.parse(localStorage.getItem('qookie-custom-prompts') || '{}');
+  customPrompts[promptName] = promptText;
+  localStorage.setItem('qookie-custom-prompts', JSON.stringify(customPrompts));
+};
+
+// Reset prompt to default
+export const resetPromptToDefault = (promptName) => {
+  const customPrompts = JSON.parse(localStorage.getItem('qookie-custom-prompts') || '{}');
+  delete customPrompts[promptName];
+  localStorage.setItem('qookie-custom-prompts', JSON.stringify(customPrompts));
+};
+
+// Get all prompts for display in modal
+export const getAllPrompts = () => {
+  return {
+    researchPrompt: {
+      name: 'Research Prompt',
+      template: getPromptTemplate('researchPrompt'),
+      isCustom: localStorage.getItem('qookie-custom-prompts') && JSON.parse(localStorage.getItem('qookie-custom-prompts')).researchPrompt
+    },
+    validationPrompt: {
+      name: 'Validation Prompt', 
+      template: getPromptTemplate('validationPrompt'),
+      isCustom: localStorage.getItem('qookie-custom-prompts') && JSON.parse(localStorage.getItem('qookie-custom-prompts')).validationPrompt
+    },
+    followUpPrompt: {
+      name: 'Follow-up Prompt',
+      template: getPromptTemplate('followUpPrompt'),
+      isCustom: localStorage.getItem('qookie-custom-prompts') && JSON.parse(localStorage.getItem('qookie-custom-prompts')).followUpPrompt
+    }
+  };
+};
+
+export const ResearchPromptSystem = {
+  /**
+   * Generate a comprehensive research prompt for a quantum partnership
+   */
+  generateResearchPrompt: (partnership, referenceExample) => {
+    const template = getPromptTemplate('researchPrompt');
+    
+    return template
+      .replace(/\{company\}/g, partnership.company)
+      .replace(/\{partner\}/g, partnership.partner)
+      .replace(/\{year\}/g, partnership.year || 'RESEARCH REQUIRED - Find announcement/start dates')
+      .replace(/\{notes\}/g, partnership.notes || 'No additional notes')
+      .replace(/\{referenceExample\}/g, referenceExample)
+      .replace(/\{researchDate\}/g, new Date().toISOString().split('T')[0]);
+  },
+
+  /**
+   * Generate a validation prompt to check case study quality
+   */
+  generateValidationPrompt: (caseStudy, referenceExample) => {
+    const template = getPromptTemplate('validationPrompt');
+    
+    return template
+      .replace(/\{referenceExample\}/g, referenceExample)
+      .replace(/\{caseStudy\}/g, JSON.stringify(caseStudy, null, 2));
+  },
+
+  /**
+   * Generate a follow-up research prompt for additional details
+   */
+  generateFollowUpPrompt: (partnership, specificTopic) => {
+    const template = getPromptTemplate('followUpPrompt');
+    
+    return template
+      .replace(/\{company\}/g, partnership.company)
+      .replace(/\{partner\}/g, partnership.partner)
+      .replace(/\{specificTopic\}/g, specificTopic);
   }
 };
 

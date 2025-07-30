@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useCaseStudyStore, useMetadataStore, useReferencesStore, useBatchStore, useGlobalBatchStore } from './stores';
 import { btn } from './styles/buttonStyles';
 import ExportPreviewModal from './components/ExportPreviewModal';
+import { getAllPrompts, saveCustomPrompt, resetPromptToDefault } from './research/ResearchPromptSystem.js';
 
 function App() {
   const [partnerships, setPartnerships] = useState([]);
@@ -116,6 +117,9 @@ function App() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showBatchCompleteModal, setShowBatchCompleteModal] = useState(false);
   const [showPromptsModal, setShowPromptsModal] = useState(false);
+  const [editingPrompt, setEditingPrompt] = useState(null);
+  const [editText, setEditText] = useState('');
+  const [promptsData, setPromptsData] = useState({});
   const [batchResults, setBatchResults] = useState(null);
   
   // Settings state - each mode has its own AI model selection
@@ -1608,6 +1612,49 @@ ${caseStudy.collectionNotes}
       setTimeout(() => setRestoreStatus(null), 5000);
     }
   };
+
+  // Prompt editing functions
+  const handleEditPrompt = (promptKey) => {
+    const prompts = getAllPrompts();
+    setEditingPrompt(promptKey);
+    setEditText(prompts[promptKey].template);
+  };
+
+  const handleSavePrompt = () => {
+    if (editingPrompt) {
+      saveCustomPrompt(editingPrompt, editText);
+      setPromptsData(getAllPrompts());
+      setEditingPrompt(null);
+      setEditText('');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPrompt(null);
+    setEditText('');
+  };
+
+  const handleResetPrompt = (promptKey) => {
+    resetPromptToDefault(promptKey);
+    setPromptsData(getAllPrompts());
+  };
+
+  // Prompt configuration for dynamic rendering
+  const promptConfig = [
+    { key: 'researchPrompt', icon: '🔬', title: 'Research Case Study Prompt' },
+    { key: 'validationPrompt', icon: '🔍', title: 'Validation Prompt' },
+    { key: 'followUpPrompt', icon: '📚', title: 'Follow-up Research Prompt' },
+    { key: 'serverApiPrompt', icon: '🔗', title: 'API Research Prompt' },
+    { key: 'metadataPrompt', icon: '🏷️', title: 'Metadata Analysis Prompt' },
+    { key: 'referencesPrompt', icon: '📚', title: 'References Collection Prompt' }
+  ];
+
+  // Load prompts data when modal opens
+  useEffect(() => {
+    if (showPromptsModal) {
+      setPromptsData(getAllPrompts());
+    }
+  }, [showPromptsModal]);
 
   return (
     <>
@@ -3726,7 +3773,8 @@ ${caseStudy.collectionNotes}
           {/* Modal Content */}
           <div style={{
             flex: 1,
-            overflow: 'auto'
+            overflow: 'auto',
+            paddingRight: '20px' // Extra padding for scrollbar
           }}>
             <div style={{ 
               display: 'flex', 
@@ -3734,233 +3782,134 @@ ${caseStudy.collectionNotes}
               gap: '24px'
             }}>
               
-              {/* Research Prompts Section */}
-              <div>
-                <h3 style={{
-                  color: darkMode ? '#f8fafc' : '#1e293b',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  marginBottom: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  🔬 Research Case Study Prompt
-                </h3>
-                <div style={{
-                  backgroundColor: darkMode ? '#374151' : '#f9fafb',
-                  border: darkMode ? '1px solid #4b5563' : '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  padding: '16px'
-                }}>
-                  <div style={{
-                    fontSize: '12px',
-                    fontFamily: 'monospace',
-                    color: darkMode ? '#e5e7eb' : '#4b5563',
-                    whiteSpace: 'pre-wrap',
-                    lineHeight: '1.4',
-                    maxHeight: '200px',
-                    overflow: 'auto'
-                  }}>
-{`You are a quantum computing industry researcher tasked with creating a comprehensive case study.
-
-CRITICAL TIMELINE RESEARCH: You must actively research and identify specific dates, timelines, and milestones for this partnership, even if not provided in the source data.
-
-RESEARCH REQUIREMENTS:
-1. Conduct thorough research using publicly available information
-2. Focus on factual, verifiable information only
-3. CRITICAL: Research and identify the actual partnership timeline, announcement date, project phases, and key milestones
-4. Include specific technical details about quantum implementation
-5. Provide quantifiable business impact metrics where available
-6. Maintain professional, academic tone throughout
-7. Include proper citations and references
-
-TIMELINE RESEARCH INSTRUCTIONS:
-- If partnership year is missing or 'TBD', you MUST research and find:
-  • Partnership announcement date
-  • Project initiation date
-  • Key milestone dates
-  • Current status and timeline
-- Look for press releases, company announcements, research papers, and news articles
-- Include specific months/quarters when possible`}
+              {/* Dynamic Prompt Sections */}
+              {promptConfig.map(({ key, icon, title }) => {
+                const prompts = promptsData || {};
+                const promptTemplate = prompts[key]?.template || '';
+                const isEditing = editingPrompt === key;
+                
+                return (
+                  <div key={key}>
+                    <h3 style={{
+                      color: darkMode ? '#f8fafc' : '#1e293b',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      marginBottom: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {icon} {title}
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        {!isEditing ? (
+                          <button
+                            onClick={() => handleEditPrompt(key)}
+                            style={{
+                              padding: '4px 8px',
+                              backgroundColor: '#3b82f6',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: '500'
+                            }}
+                          >
+                            ✏️ Edit
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={handleSavePrompt}
+                              style={{
+                                padding: '4px 8px',
+                                backgroundColor: '#10b981',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '12px',
+                                fontWeight: '500'
+                              }}
+                            >
+                              💾 Save
+                            </button>
+                            <button
+                              onClick={handleCancelEdit}
+                              style={{
+                                padding: '4px 8px',
+                                backgroundColor: '#6b7280',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '12px',
+                                fontWeight: '500'
+                              }}
+                            >
+                              ✕ Cancel
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => handleResetPrompt(key)}
+                          style={{
+                            padding: '4px 8px',
+                            backgroundColor: '#ef4444',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            fontWeight: '500'
+                          }}
+                        >
+                          🔄 Reset
+                        </button>
+                      </div>
+                    </h3>
+                    <div style={{
+                      backgroundColor: darkMode ? '#374151' : '#f9fafb',
+                      border: darkMode ? '1px solid #4b5563' : '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      padding: '16px'
+                    }}>
+                      {isEditing ? (
+                        <textarea
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          style={{
+                            width: '100%',
+                            minHeight: '200px',
+                            fontSize: '12px',
+                            fontFamily: 'monospace',
+                            color: darkMode ? '#e5e7eb' : '#4b5563',
+                            backgroundColor: darkMode ? '#1f2937' : 'white',
+                            border: darkMode ? '1px solid #4b5563' : '1px solid #d1d5db',
+                            borderRadius: '4px',
+                            padding: '12px',
+                            resize: 'vertical',
+                            whiteSpace: 'pre-wrap',
+                            lineHeight: '1.4'
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          fontSize: '12px',
+                          fontFamily: 'monospace',
+                          color: darkMode ? '#e5e7eb' : '#4b5563',
+                          whiteSpace: 'pre-wrap',
+                          lineHeight: '1.4',
+                        }}>
+                          {promptTemplate}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </div>
-
-              {/* Server API Prompt Section */}
-              <div>
-                <h3 style={{
-                  color: darkMode ? '#f8fafc' : '#1e293b',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  marginBottom: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  🔗 API Research Prompt  
-                </h3>
-                <div style={{
-                  backgroundColor: darkMode ? '#374151' : '#f9fafb',
-                  border: darkMode ? '1px solid #4b5563' : '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  padding: '16px'
-                }}>
-                  <div style={{
-                    fontSize: '12px',
-                    fontFamily: 'monospace',
-                    color: darkMode ? '#e5e7eb' : '#4b5563',
-                    whiteSpace: 'pre-wrap',
-                    lineHeight: '1.4',
-                    maxHeight: '200px',
-                    overflow: 'auto'
-                  }}>
-{`Research and create a comprehensive case study about the quantum computing partnership.
-
-CRITICAL TIMELINE RESEARCH: You must actively research and identify specific dates, timelines, and milestones for this partnership, even if not provided in the source data. Look for announcement dates, project phases, and current status.
-
-IMPORTANT: You must respond with ONLY valid JSON. No markdown, no explanations, no text before or after the JSON.
-
-Return this exact JSON structure:
-{
-  "title": "Partnership title",
-  "summary": "2-3 sentence executive summary",
-  "introduction": "Detailed introduction (200+ words) - MUST include specific partnership announcement date and timeline details",
-  "implementation": "How was it implemented? (200+ words) - MUST include project phases with specific dates/timeframes",
-  "metadata": {
-    "announcement_date": "YYYY-MM-DD format - research and find actual date",
-    "project_timeline": "Brief description of project phases and timing"
-  }
-}
-
-TIMELINE RESEARCH REQUIREMENTS:
-- If year is missing, you MUST research and find the partnership announcement date
-- Look for press releases, company blogs, research papers, and news coverage
-- Include specific months/quarters when possible
-- Document project phases and current status`}
-                  </div>
-                </div>
-              </div>
-
-              {/* Metadata Analysis Prompt Section */}
-              <div>
-                <h3 style={{
-                  color: darkMode ? '#f8fafc' : '#1e293b',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  marginBottom: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  🏷️ Metadata Analysis Prompt
-                </h3>
-                <div style={{
-                  backgroundColor: darkMode ? '#374151' : '#f9fafb',
-                  border: darkMode ? '1px solid #4b5563' : '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  padding: '16px'
-                }}>
-                  <div style={{
-                    fontSize: '12px',
-                    fontFamily: 'monospace',
-                    color: darkMode ? '#e5e7eb' : '#4b5563',
-                    whiteSpace: 'pre-wrap',
-                    lineHeight: '1.4',
-                    maxHeight: '200px',
-                    overflow: 'auto'
-                  }}>
-{`You are analyzing a quantum computing case study. Your task is to match the case study content against provided reference lists and return ONLY a JSON object with the analysis results.
-
-CASE STUDY TO ANALYZE:
-[Case study content is dynamically inserted here]
-
-REFERENCE LISTS TO MATCH AGAINST:
-Algorithms: [Dynamic list of quantum algorithms]
-Industries: [Dynamic list of industries]
-Personas: [Dynamic list of personas]
-
-Your task is to analyze the case study content and match it against the reference lists. Return ONLY a JSON object with these exact fields:
-
-{
-  "algorithms": ["algorithm1", "algorithm2"],
-  "industries": ["industry1", "industry2"], 
-  "personas": ["persona1", "persona2"],
-  "confidence_score": 0.85,
-  "analysis_notes": "Brief notes about the analysis and any assumptions made"
-}
-
-IMPORTANT MATCHING RULES:
-1. ONLY include items from the reference lists provided above
-2. Do not invent new items that aren't in the reference lists
-3. Match based on semantic meaning, not just exact text matches
-4. Include confidence score between 0.0 and 1.0`}
-                  </div>
-                </div>
-              </div>
-
-              {/* References Collection Section */}
-              <div>
-                <h3 style={{
-                  color: darkMode ? '#f8fafc' : '#1e293b',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  marginBottom: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  📚 References Collection Prompt
-                </h3>
-                <div style={{
-                  backgroundColor: darkMode ? '#374151' : '#f9fafb',
-                  border: darkMode ? '1px solid #4b5563' : '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  padding: '16px'
-                }}>
-                  <div style={{
-                    fontSize: '12px',
-                    fontFamily: 'monospace',
-                    color: darkMode ? '#e5e7eb' : '#4b5563',
-                    whiteSpace: 'pre-wrap',
-                    lineHeight: '1.4',
-                    maxHeight: '200px',
-                    overflow: 'auto'
-                  }}>
-{`Find comprehensive references and further reading materials for the quantum computing partnership.
-
-IMPORTANT: You must respond with ONLY valid JSON. No markdown, no explanations, no text before or after the JSON.
-
-Return this exact JSON structure:
-{
-  "scientific_references": [
-    {
-      "title": "Academic paper or research title",
-      "url": "https://example.com/paper",
-      "authors": "Author names",
-      "year": "2023",
-      "type": "academic_paper|conference_paper|preprint"
-    }
-  ],
-  "further_reading": [
-    {
-      "title": "Article or resource title", 
-      "url": "https://example.com/article",
-      "source": "Publication or website name",
-      "type": "press_release|blog_post|news_article|technical_documentation"
-    }
-  ]
-}
-
-RESEARCH REQUIREMENTS:
-- Focus on academic and scientific sources for scientific_references
-- Include press releases, news coverage, and technical blogs for further_reading  
-- Ensure all URLs are actual, working links to real content
-- Include recent publications and coverage (prefer 2022-2024)
-- Prioritize authoritative sources and official company announcements`}
-                  </div>
-                </div>
-              </div>
+                );
+              })}
 
             </div>
           </div>
