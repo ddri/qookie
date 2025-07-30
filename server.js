@@ -203,6 +203,10 @@ Return this exact JSON structure:
     "algorithms": ["list", "of", "quantum", "algorithms"],
     "industries": ["list", "of", "industries"],
     "personas": ["list", "of", "target", "personas"],
+    "quantum_companies": ["list", "of", "quantum", "computing", "companies"],
+    "partner_companies": ["list", "of", "commercial", "partner", "companies"],
+    "quantum_hardware": ["specific", "quantum", "hardware", "systems"],
+    "quantum_software": ["specific", "quantum", "software", "frameworks"],
     "announcement_date": "YYYY-MM-DD format - research and find actual date",
     "project_timeline": "Brief description of project phases and timing",
     "confidence_score": 0.85
@@ -218,6 +222,12 @@ TIMELINE RESEARCH REQUIREMENTS:
 - Look for press releases, company blogs, research papers, and news coverage
 - Include specific months/quarters when possible
 - Document project phases and current status
+
+OPENQASE FIELD REQUIREMENTS:
+- quantum_companies: Identify all quantum computing companies (IBM Quantum, Google Quantum, Rigetti, IonQ, Quantinuum, etc.)
+- partner_companies: Identify all commercial/business partners (banks, pharmaceuticals, logistics companies, etc.)
+- quantum_hardware: Research specific quantum hardware systems (IBM Quantum processors, Google Sycamore, IonQ trapped-ion systems, etc.)
+- quantum_software: Research quantum development tools/frameworks (Qiskit, Cirq, PennyLane, Forest, Amazon Braket SDK, etc.)
 
 Focus on factual information and realistic quantum computing applications. Respond with ONLY the JSON object.`;
 

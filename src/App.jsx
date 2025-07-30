@@ -491,12 +491,18 @@ ${caseStudy.future_directions}
 - **Algorithms**: ${caseStudy.metadata.algorithms && caseStudy.metadata.algorithms.join(', ') || 'None specified'}
 - **Industries**: ${caseStudy.metadata.industries && caseStudy.metadata.industries.join(', ') || 'None specified'}
 - **Target Personas**: ${caseStudy.metadata.personas && caseStudy.metadata.personas.join(', ') || 'None specified'}
+- **Quantum Companies**: ${caseStudy.metadata.quantum_companies && caseStudy.metadata.quantum_companies.join(', ') || 'None specified'}
+- **Partner Companies**: ${caseStudy.metadata.partner_companies && caseStudy.metadata.partner_companies.join(', ') || 'None specified'}
+- **Quantum Hardware**: ${caseStudy.metadata.quantum_hardware && caseStudy.metadata.quantum_hardware.join(', ') || 'None specified'}
+- **Quantum Software**: ${caseStudy.metadata.quantum_software && caseStudy.metadata.quantum_software.join(', ') || 'None specified'}
 - **Confidence Score**: ${caseStudy.metadata.confidence_score || 'Not provided'}
 
 ` : ''}${caseStudy.advancedMetadata ? `## Advanced Metadata
 - **Algorithms**: ${caseStudy.advancedMetadata.algorithms && caseStudy.advancedMetadata.algorithms.join(', ') || 'None specified'}
 - **Industries**: ${caseStudy.advancedMetadata.industries && caseStudy.advancedMetadata.industries.join(', ') || 'None specified'}
 - **Target Personas**: ${caseStudy.advancedMetadata.personas && caseStudy.advancedMetadata.personas.join(', ') || 'None specified'}
+- **Quantum Companies**: ${caseStudy.advancedMetadata.quantum_companies && caseStudy.advancedMetadata.quantum_companies.join(', ') || 'None specified'}
+- **Partner Companies**: ${caseStudy.advancedMetadata.partner_companies && caseStudy.advancedMetadata.partner_companies.join(', ') || 'None specified'}
 - **Quantum Hardware**: ${caseStudy.advancedMetadata.quantum_hardware && caseStudy.advancedMetadata.quantum_hardware.join(', ') || 'None specified'}
 - **Quantum Software**: ${caseStudy.advancedMetadata.quantum_software && caseStudy.advancedMetadata.quantum_software.join(', ') || 'None specified'}${caseStudy.advancedMetadata.hardware_details && Object.keys(caseStudy.advancedMetadata.hardware_details).length > 0 ? `
 - **Hardware Details**: ${Object.entries(caseStudy.advancedMetadata.hardware_details).map(([key, value]) => `${key}: ${value}`).join(', ')}` : ''}
@@ -2428,6 +2434,10 @@ ${caseStudy.collectionNotes}
                       <div><strong>Algorithms:</strong> {basicMetadata.algorithms?.join(', ') || 'None'}</div>
                       <div><strong>Industries:</strong> {basicMetadata.industries?.join(', ') || 'None'}</div>
                       <div><strong>Personas:</strong> {basicMetadata.personas?.join(', ') || 'None'}</div>
+                      <div><strong>Quantum Companies:</strong> {basicMetadata.quantum_companies?.join(', ') || 'None'}</div>
+                      <div><strong>Partner Companies:</strong> {basicMetadata.partner_companies?.join(', ') || 'None'}</div>
+                      <div><strong>Hardware:</strong> {basicMetadata.quantum_hardware?.join(', ') || 'None'}</div>
+                      <div><strong>Software:</strong> {basicMetadata.quantum_software?.join(', ') || 'None'}</div>
                       <div><strong>Confidence:</strong> {basicMetadata.confidence_score || 'N/A'}</div>
                     </div>
                   </div>
@@ -2535,6 +2545,8 @@ ${caseStudy.collectionNotes}
                       <div><strong>Algorithms:</strong> {advancedMetadata.algorithms?.join(', ') || 'None'}</div>
                       <div><strong>Industries:</strong> {advancedMetadata.industries?.join(', ') || 'None'}</div>
                       <div><strong>Personas:</strong> {advancedMetadata.personas?.join(', ') || 'None'}</div>
+                      <div><strong>Quantum Companies:</strong> {advancedMetadata.quantum_companies?.join(', ') || 'None'}</div>
+                      <div><strong>Partner Companies:</strong> {advancedMetadata.partner_companies?.join(', ') || 'None'}</div>
                       <div><strong>Hardware:</strong> {advancedMetadata.quantum_hardware?.join(', ') || 'None'}</div>
                       <div><strong>Software:</strong> {advancedMetadata.quantum_software?.join(', ') || 'None'}</div>
                       {advancedMetadata.hardware_details && Object.keys(advancedMetadata.hardware_details).length > 0 && (

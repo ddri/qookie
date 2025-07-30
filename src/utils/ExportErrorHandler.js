@@ -151,6 +151,8 @@ export class ExportErrorHandler {
       industries: this.safeGetArray(metadata?.industries || metadata?.advancedMetadata?.industries, 'industries', partnershipName, warnings),
       algorithms: this.safeGetArray(metadata?.algorithms || metadata?.advancedMetadata?.algorithms, 'algorithms', partnershipName, warnings),
       personas: this.safeGetArray(metadata?.personas || metadata?.advancedMetadata?.personas, 'personas', partnershipName, warnings),
+      quantum_companies: this.safeGetArray(caseStudy?.quantum_companies || metadata?.quantum_companies || metadata?.advancedMetadata?.quantum_companies, 'quantum_companies', partnershipName, warnings),
+      partner_companies: this.safeGetArray(caseStudy?.partner_companies || metadata?.partner_companies || metadata?.advancedMetadata?.partner_companies, 'partner_companies', partnershipName, warnings),
       technologies: technologies
     };
 
@@ -175,7 +177,7 @@ export class ExportErrorHandler {
       companies: {
         quantum_provider: this.safeGetString(partnership.company),
         commercial_partner: this.safeGetString(partnership.partner),
-        year: this.safeGetNumber(partnership.year)
+        year: this.safeGetNumber(caseStudy?.metadata?.publication_year || partnership.year)
       },
       categories: categories,
       references: allReferences,

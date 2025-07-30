@@ -208,10 +208,14 @@ export class ValidationEngine {
     const hasAlgorithms = metadata?.algorithms?.length > 0 || metadata?.advancedMetadata?.algorithms?.length > 0;
     const hasIndustries = metadata?.industries?.length > 0 || metadata?.advancedMetadata?.industries?.length > 0;
     const hasPersonas = metadata?.personas?.length > 0 || metadata?.advancedMetadata?.personas?.length > 0;
+    const hasQuantumCompanies = caseStudy?.quantum_companies?.length > 0 || metadata?.quantum_companies?.length > 0 || metadata?.advancedMetadata?.quantum_companies?.length > 0;
+    const hasPartnerCompanies = caseStudy?.partner_companies?.length > 0 || metadata?.partner_companies?.length > 0 || metadata?.advancedMetadata?.partner_companies?.length > 0;
+    const hasQuantumHardware = caseStudy?.quantum_hardware?.length > 0 || metadata?.quantum_hardware?.length > 0 || metadata?.advancedMetadata?.quantum_hardware?.length > 0;
+    const hasQuantumSoftware = caseStudy?.quantum_software?.length > 0 || metadata?.quantum_software?.length > 0 || metadata?.advancedMetadata?.quantum_software?.length > 0;
     const hasReferences = references?.length > 0 || furtherReading?.length > 0;
     
-    const metadataScore = [hasAlgorithms, hasIndustries, hasPersonas, hasReferences].filter(Boolean).length;
-    const isAdequate = metadataScore >= 2;
+    const metadataScore = [hasAlgorithms, hasIndustries, hasPersonas, hasQuantumCompanies, hasPartnerCompanies, hasQuantumHardware, hasQuantumSoftware, hasReferences].filter(Boolean).length;
+    const isAdequate = metadataScore >= 4;
     
     return {
       isValid: isAdequate,

@@ -50,9 +50,13 @@ const CaseStudyCard = ({
     const algorithms = metadata?.algorithms?.length || metadata?.advancedMetadata?.algorithms?.length || 0;
     const industries = metadata?.industries?.length || metadata?.advancedMetadata?.industries?.length || 0;
     const personas = metadata?.personas?.length || metadata?.advancedMetadata?.personas?.length || 0;
+    const quantumCompanies = metadata?.quantum_companies?.length || metadata?.advancedMetadata?.quantum_companies?.length || 0;
+    const partnerCompanies = metadata?.partner_companies?.length || metadata?.advancedMetadata?.partner_companies?.length || 0;
+    const quantumHardware = metadata?.quantum_hardware?.length || metadata?.advancedMetadata?.quantum_hardware?.length || 0;
+    const quantumSoftware = metadata?.quantum_software?.length || metadata?.advancedMetadata?.quantum_software?.length || 0;
     const referencesCount = (references?.length || 0) + (furtherReading?.length || 0);
     
-    return { algorithms, industries, personas, references: referencesCount };
+    return { algorithms, industries, personas, quantumCompanies, partnerCompanies, quantumHardware, quantumSoftware, references: referencesCount };
   };
   
   const metadataStats = getMetadataRichness();
@@ -279,7 +283,7 @@ const CaseStudyCard = ({
               <Tags size={16} />
               <span>Categorization</span>
             </h4>
-            <div className="grid grid-cols-3 gap-3 text-xs">
+            <div className="grid grid-cols-2 gap-3 text-xs">
               <div>
                 <p className={textMuted}>Algorithms</p>
                 <p className={textSecondary}>{metadataStats.algorithms} items</p>
@@ -299,6 +303,34 @@ const CaseStudyCard = ({
                 <p className={textSecondary}>{metadataStats.personas} items</p>
                 {metadata?.personas?.slice(0, 2).map((persona, i) => (
                   <p key={i} className={`${textMuted} truncate`}>• {persona}</p>
+                ))}
+              </div>
+              <div>
+                <p className={textMuted}>Quantum Companies</p>
+                <p className={textSecondary}>{metadataStats.quantumCompanies} items</p>
+                {(metadata?.quantum_companies || metadata?.advancedMetadata?.quantum_companies)?.slice(0, 2).map((company, i) => (
+                  <p key={i} className={`${textMuted} truncate`}>• {company}</p>
+                ))}
+              </div>
+              <div>
+                <p className={textMuted}>Partner Companies</p>
+                <p className={textSecondary}>{metadataStats.partnerCompanies} items</p>
+                {(metadata?.partner_companies || metadata?.advancedMetadata?.partner_companies)?.slice(0, 2).map((company, i) => (
+                  <p key={i} className={`${textMuted} truncate`}>• {company}</p>
+                ))}
+              </div>
+              <div>
+                <p className={textMuted}>Quantum Hardware</p>
+                <p className={textSecondary}>{metadataStats.quantumHardware} items</p>
+                {(metadata?.quantum_hardware || metadata?.advancedMetadata?.quantum_hardware)?.slice(0, 2).map((hardware, i) => (
+                  <p key={i} className={`${textMuted} truncate`}>• {hardware}</p>
+                ))}
+              </div>
+              <div>
+                <p className={textMuted}>Quantum Software</p>
+                <p className={textSecondary}>{metadataStats.quantumSoftware} items</p>
+                {(metadata?.quantum_software || metadata?.advancedMetadata?.quantum_software)?.slice(0, 2).map((software, i) => (
+                  <p key={i} className={`${textMuted} truncate`}>• {software}</p>
                 ))}
               </div>
             </div>
