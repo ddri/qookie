@@ -320,6 +320,7 @@ Focus on factual information and realistic quantum computing applications. Respo
         tokenCount: data.usage?.total_tokens || 'unknown'
       }
     });
+    }
 
   } catch (error) {
     console.error('Server error:', error);

@@ -42,7 +42,7 @@ npm run dev & node server.js
 
 ---
 
-## 🏆 What You Get
+## 🏆 What The What
 
 ### **📈 Batch Processing Modes**
 - **Uncapped** (2s delay): Fast processing, ~$2-4 for 25 partnerships
@@ -63,8 +63,9 @@ Each partnership automatically gets:
 - **Executive Summary**: Professional case study overview
 - **Technical Analysis**: Challenges, solutions, implementation
 - **Business Impact**: Results and future directions  
-- **Metadata Tagging**: Algorithms, industries, personas
+- **Enhanced Metadata Tagging**: Algorithms, industries, personas, quantum companies, partner companies, hardware, software
 - **Reference Collection**: Academic papers + business coverage
+- **OpenQase Export**: Enhanced export pipeline with comprehensive field validation
 
 ---
 
@@ -137,9 +138,16 @@ Qookie features a clean, organized navigation bar with grouped functionality:
 5. **Export Results**: Bulk download or push all results to GitHub
 
 ### **📝 AI Transparency**
-- **View Prompts**: Click 📝 Prompts to see all AI instructions
+- **View Prompts**: Click 📝 Prompts to see all 6 specialized AI instructions:
+  - 🔬 Research Case Study Prompt
+  - 🔍 Validation Prompt  
+  - 📚 Follow-up Research Prompt
+  - 🔗 API Research Prompt
+  - 🏷️ Metadata Analysis Prompt
+  - 📚 References Collection Prompt
 - **Research Quality**: Prompts include timeline research and quality standards
-- **Categorization**: See how metadata analysis works with reference lists
+- **Enhanced Metadata**: Extracts quantum companies, hardware, software, and partner details
+- **Customizable**: Edit and save custom prompts with localStorage persistence
 
 ### **💾 Session Management**
 - **Backup**: 💾 icon saves current session to GitHub
@@ -228,11 +236,37 @@ Automatic backup of generated case studies:
 ## 🔧 API Endpoints
 
 Backend server provides:
-- `POST /api/research` - Generate comprehensive case studies
+- `POST /api/research` - Generate comprehensive case studies with enhanced OpenQase fields
 - `POST /api/analyze` - AI-powered metadata categorization
 - `POST /api/references` - Collect academic and business references  
 - `POST /api/search` - Web search functionality
 - `POST /api/github/push` - GitHub backup integration
+- `POST /api/github/backup-session` - Full session backup
+- `POST /api/github/restore-session` - Session restoration
+- `GET /api/github/list-backups` - List available backups
+
+## 🔒 Security & Privacy
+
+**Local Development Focus**: Qookie is designed as a local development tool for individual researchers and teams.
+
+### **✅ Security Features**
+- **API Key Protection**: All sensitive keys stored in `.env` file (gitignored)
+- **No Hardcoded Secrets**: Clean open-source codebase with no exposed credentials
+- **Local Processing**: All data processing happens on your machine
+- **GitHub Integration**: Optional backup to your own repositories only
+
+### **🛡️ Best Practices**
+- Never commit your `.env` file to version control
+- Use environment variables for all API keys and tokens
+- Regularly rotate API keys and GitHub tokens
+- Keep your local environment secure
+
+### **⚠️ Production Deployment**
+If deploying publicly (not recommended for current version):
+- Add authentication to API endpoints
+- Configure CORS restrictions
+- Implement rate limiting
+- Use HTTPS only
 
 ---
 
@@ -318,6 +352,12 @@ A: Check your ANTHROPIC_API_KEY in .env file. Verify you have API credits availa
 
 **Q: GitHub backup/restore not working**
 A: Verify GITHUB_TOKEN, GITHUB_REPO_OWNER, and GITHUB_REPO_NAME are set in .env.
+
+**Q: AI Prompts modal showing empty text areas**
+A: This was fixed in the latest version. Update to get all 6 specialized prompt templates populated correctly.
+
+**Q: Missing new metadata fields (quantum companies, hardware, software)**
+A: Ensure you're using the latest version with OpenQase field integration. Check that case studies were generated after the update.
 
 ### **Development Issues**
 

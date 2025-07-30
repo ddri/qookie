@@ -10,6 +10,7 @@ function App() {
   
   // Zustand stores
   const { 
+    caseStudies,
     getCaseStudy, 
     generateCaseStudy, 
     regenerateCaseStudy,
@@ -2225,26 +2226,26 @@ ${caseStudy.collectionNotes}
 
             {/* Case Study Container */}
             <div 
-              onClick={() => !batchMode && selectedPartnership && !caseStudy && !caseStudyLoading ? handleGenerateCaseStudy(selectedPartnership) : null}
+              onClick={() => selectedPartnership && !caseStudy && !caseStudyLoading ? handleGenerateCaseStudy(selectedPartnership) : null}
               style={{ 
                 backgroundColor: darkMode ? '#1f2937' : 'white',
                 borderRadius: '12px',
                 padding: '24px',
                 boxShadow: batchMode && batchStep === 1 ? '0 0 0 2px #3b82f6' : '0 1px 3px rgba(0,0,0,0.1)',
                 border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0',
-                cursor: !batchMode && selectedPartnership && !caseStudy && !caseStudyLoading ? 'pointer' : 'default',
+                cursor: selectedPartnership && !caseStudy && !caseStudyLoading ? 'pointer' : 'default',
                 transition: 'all 0.2s ease',
                 opacity: !selectedPartnership ? 0.6 : 1
               }}
               onMouseEnter={(e) => {
-                if (!batchMode && selectedPartnership && !caseStudy && !caseStudyLoading) {
+                if (selectedPartnership && !caseStudy && !caseStudyLoading) {
                   e.target.style.backgroundColor = darkMode ? '#374151' : '#f8fafc';
                   e.target.style.transform = 'translateY(-2px)';
                   e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
                 }
               }}
               onMouseLeave={(e) => {
-                if (!batchMode && selectedPartnership && !caseStudy && !caseStudyLoading) {
+                if (selectedPartnership && !caseStudy && !caseStudyLoading) {
                   e.target.style.backgroundColor = darkMode ? '#1f2937' : 'white';
                   e.target.style.transform = 'translateY(0px)';
                   e.target.style.boxShadow = batchMode && batchStep === 1 ? '0 0 0 2px #3b82f6' : '0 1px 3px rgba(0,0,0,0.1)';
