@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 dotenv.config();
 
@@ -176,11 +177,10 @@ app.post('/api/research', async (req, res) => {
       return res.status(400).json({ error: 'Company and partner are required' });
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: 'Anthropic API key not configured' });
-    }
-
+    // Determine which AI provider to use
+    const selectedModel = model || 'claude-sonnet-4-20250514';
+    const isGemini = selectedModel.toLowerCase().includes('gemini');
+    
     // Create research prompt
     const prompt = `Research and create a comprehensive case study about the quantum computing partnership between "${company}" and "${partner}".
 
@@ -231,15 +231,45 @@ OPENQASE FIELD REQUIREMENTS:
 
 Focus on factual information and realistic quantum computing applications. Respond with ONLY the JSON object.`;
 
-    const selectedModel = model || 'claude-sonnet-4-20250514';
     console.log(`Starting research for ${company} + ${partner} using model: ${selectedModel}`);
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
+    let response;
+    if (isGemini) {
+      // Google Gemini API
+      const googleApiKey = process.env.GOOGLE_AI_API_KEY;
+      if (!googleApiKey) {
+        return res.status(500).json({ error: 'Google AI API key not configured' });
+      }
+
+      const genAI = new GoogleGenerativeAI(googleApiKey);
+      const geminiModel = genAI.getGenerativeModel({ model: selectedModel });
+      
+      const result = await geminiModel.generateContent(prompt);
+      const text = result.response.text();
+      
+      response = {
+        ok: true,
+        json: async () => {
+          try {
+            return { caseStudy: JSON.parse(text) };
+          } catch (error) {
+            throw new Error(`Failed to parse Gemini JSON response: ${error.message}`);
+          }
+        }
+      };
+    } else {
+      // Anthropic Claude API
+      const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+      if (!anthropicApiKey) {
+        return res.status(500).json({ error: 'Anthropic API key not configured' });
+      }
+
+      response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': anthropicApiKey,
+          'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
         model: selectedModel,

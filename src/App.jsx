@@ -1342,7 +1342,12 @@ ${caseStudy.collectionNotes}
       'claude-3-5-haiku-20241022': 0.15,  // Fast & Smart
       'claude-3-opus-20240229': 0.50,     // Claude 3 Opus
       'claude-3-sonnet-20240229': 0.20,   // Claude 3 Sonnet
-      'claude-3-haiku-20240307': 0.10     // Fastest
+      'claude-3-haiku-20240307': 0.10,    // Fastest
+      'gemini-2.5-pro': 0.125,            // Google Gemini 2.5 Pro
+      'gemini-2.5-flash': 0.075,          // Google Gemini 2.5 Flash  
+      'gemini-2.0-flash': 0.10,           // Google Gemini 2.0 Flash
+      'gemini-1.5-pro': 0.125,            // Google Gemini 1.5 Pro
+      'gemini-1.5-flash': 0.075           // Google Gemini 1.5 Flash
     };
 
     const selectedModel = settings.modes[mode]?.aiModel || 'claude-sonnet-4-20250514';
@@ -3189,7 +3194,7 @@ ${caseStudy.collectionNotes}
           padding: '24px',
           maxWidth: '500px',
           width: '90%',
-          maxHeight: '80vh',
+          maxHeight: '90vh',
           overflowY: 'auto',
           border: darkMode ? '1px solid #374151' : '1px solid #e2e8f0',
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
@@ -3264,6 +3269,11 @@ ${caseStudy.collectionNotes}
               <option value="claude-3-opus-20240229">Claude 3 Opus</option>
               <option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option>
               <option value="claude-3-haiku-20240307">Claude 3 Haiku (Fastest)</option>
+              <option value="gemini-2.5-pro">Google Gemini 2.5 Pro (Latest & Most Capable)</option>
+              <option value="gemini-2.5-flash">Google Gemini 2.5 Flash (Fast & Cost-Effective)</option>
+              <option value="gemini-2.0-flash">Google Gemini 2.0 Flash (Agentic Era)</option>
+              <option value="gemini-1.5-pro">Google Gemini 1.5 Pro</option>
+              <option value="gemini-1.5-flash">Google Gemini 1.5 Flash (Cheapest)</option>
             </select>
           </div>
 
