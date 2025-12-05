@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useCaseStudyStore, useMetadataStore, useReferencesStore, useBatchStore, useGlobalBatchStore } from './stores';
 import { btn } from './styles/buttonStyles';
 import ExportPreviewModal from './components/ExportPreviewModal';
+import BatchProcessingUI from './components/BatchProcessingUI';
+import SessionManager from './components/SessionManager';
+import EnhancedExport from './components/EnhancedExport';
+import useSessionPersistence from './hooks/useSessionPersistence';
 import { getAllPrompts, saveCustomPrompt, resetPromptToDefault } from './research/ResearchPromptSystem.js';
 
 function App() {
@@ -66,11 +70,13 @@ function App() {
     totalPartnerships,
     successCount,
     errorCount,
+    startTime: globalStartTime,
+    sessionLogs: globalSessionLogs,
     initializeGlobalBatch,
     startGlobalBatch,
-    pauseGlobalBatch,
-    resumeGlobalBatch,
-    stopGlobalBatch,
+    pauseGlobalBatch: pauseGlobalBatch,
+    resumeGlobalBatch: resumeGlobalBatch,
+    stopGlobalBatch: stopGlobalBatch,
     setCurrentPartnership,
     updateCurrentPartnershipProgress,
     completeCurrentPartnership,
@@ -86,6 +92,9 @@ function App() {
   
   // Export preview modal state
   const [showExportPreview, setShowExportPreview] = useState(false);
+  
+  // Session persistence
+  const sessionPersistence = useSessionPersistence(partnerships, settings, darkMode);
   
   // Derived state
   const caseStudy = selectedPartnership ? getCaseStudy(selectedPartnership.id) : null;
@@ -155,6 +164,22 @@ function App() {
     if (savedDarkMode) {
       setDarkMode(JSON.parse(savedDarkMode));
     }
+    
+    // Check for saved session after a small delay to ensure stores are ready
+    setTimeout(() => {
+      const sessionInfo = sessionPersistence.getSessionInfo();
+      if (sessionInfo && sessionInfo.caseStudiesCount > 0) {
+        console.log('📂 Found saved session with', sessionInfo.caseStudiesCount, 'case studies');
+        
+        // Auto-load the session (already has data, no need to ask)
+        sessionPersistence.loadSession();
+        
+        // Show notification if batch was interrupted
+        if (sessionInfo.globalBatchProgress?.isRunning && !sessionInfo.globalBatchProgress?.isPaused) {
+          alert(`ℹ️ Batch processing was interrupted. You had processed ${sessionInfo.globalBatchProgress.processedCount} of ${sessionInfo.globalBatchProgress.totalPartnerships} partnerships. You can resume from where you left off.`);
+        }
+      }
+    }, 500);
   }, []);
 
   // Save dark mode preference to localStorage
@@ -325,8 +350,17 @@ function App() {
       
       setReferenceLists(parsedLists);
       console.log('✅ Reference lists loaded successfully');
+      
+      // Return the parsed lists for immediate use
+      return parsedLists;
     } catch (error) {
       console.error('Failed to load reference lists:', error);
+      // Return empty lists on error
+      return {
+        algorithms: [],
+        industries: [],
+        personas: []
+      };
     }
   };
 
@@ -596,8 +630,30 @@ ${caseStudy.collectionNotes}
     try {
       clearMetadataError(); // Clear any previous errors
       
-      // Use the metadata store to perform analysis
-      const result = await analyzeMetadata(partnership, caseStudy, referenceLists, selectedModel);
+      // Use the current reference lists, but load them if they're empty
+      let listsToUse = referenceLists;
+      
+      // Check if reference lists are loaded, if not, try to load them
+      if (!referenceLists.algorithms?.length || !referenceLists.industries?.length || !referenceLists.personas?.length) {
+        console.log('⚠️ Reference lists not loaded, attempting to load them now...');
+        const loadedLists = await loadReferenceLists();
+        
+        // Use the loaded lists directly if current state is still empty
+        if (loadedLists && (loadedLists.algorithms?.length || loadedLists.industries?.length || loadedLists.personas?.length)) {
+          listsToUse = loadedLists;
+          console.log('✅ Successfully loaded reference lists for analysis');
+        } else {
+          console.warn('⚠️ Reference lists could not be loaded - analysis will proceed without matching against reference lists');
+        }
+      }
+      
+      console.log('📊 Reference lists status at analysis:');
+      console.log('  - Algorithms:', listsToUse.algorithms?.length || 0, 'items');
+      console.log('  - Industries:', listsToUse.industries?.length || 0, 'items');
+      console.log('  - Personas:', listsToUse.personas?.length || 0, 'items');
+      
+      // Use the metadata store to perform analysis with the loaded lists
+      const result = await analyzeMetadata(partnership, caseStudy, listsToUse, selectedModel);
       
       console.log('✅ Metadata analysis completed successfully')
       return result
@@ -1695,47 +1751,28 @@ ${caseStudy.collectionNotes}
             
             {/* Navigation */}
             <nav className="flex items-center space-x-2">
-              {/* Session Management Group */}
-              <div className="flex items-center space-x-1 px-3 py-1 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+              {/* Session Management - Local Storage */}
+              <div className="px-3 py-1 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <SessionManager 
+                  sessionPersistence={sessionPersistence}
+                  darkMode={darkMode}
+                  isProcessing={globalBatchRunning}
+                />
+              </div>
+              
+              {/* GitHub Backup - Keep existing for cloud backup */}
+              <div className="flex items-center space-x-1">
                 <button
                   onClick={backupSession}
                   disabled={backupStatus === 'backing-up'}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 ${
+                  className={`px-2 py-1.5 text-xs font-medium rounded-md transition-all duration-200 ${
                     backupStatus === 'backing-up' 
                       ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                      : backupStatus === 'success'
-                      ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                      : backupStatus === 'error'
-                      ? 'bg-red-100 text-red-800'
                       : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300 hover:border-gray-400 dark:bg-gray-600 dark:text-gray-200 dark:border-gray-500 dark:hover:bg-gray-500'
                   }`}
-                  title="Backup current session to GitHub"
+                  title="Backup to GitHub"
                 >
-                  {backupStatus === 'backing-up' ? '⏳' :
-                   backupStatus === 'success' ? '✅' :
-                   backupStatus === 'error' ? '❌' : '💾'}
-                </button>
-
-                <button
-                  onClick={() => {
-                    setShowRestoreDialog(true);
-                    loadAvailableBackups();
-                  }}
-                  disabled={restoreStatus === 'restoring'}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 ${
-                    restoreStatus === 'restoring' 
-                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                      : restoreStatus === 'success'
-                      ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                      : restoreStatus === 'error'
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300 hover:border-gray-400 dark:bg-gray-600 dark:text-gray-200 dark:border-gray-500 dark:hover:bg-gray-500'
-                  }`}
-                  title="Restore session from GitHub backup"
-                >
-                  {restoreStatus === 'restoring' ? '⏳' :
-                   restoreStatus === 'success' ? '✅' :
-                   restoreStatus === 'error' ? '❌' : '📥'}
+                  {backupStatus === 'backing-up' ? '⏳' : '☁️'}
                 </button>
               </div>
 
@@ -1762,6 +1799,15 @@ ${caseStudy.collectionNotes}
 
               {/* Tools Group */}
               <div className="flex items-center space-x-2">
+                {/* Enhanced Export */}
+                <EnhancedExport
+                  partnerships={partnerships}
+                  getCaseStudy={getCaseStudy}
+                  getMetadata={(id) => getAdvancedMetadata(id) || getBasicMetadata(id)}
+                  getReferences={getReferences}
+                  darkMode={darkMode}
+                />
+
                 <button
                   onClick={() => setShowPromptsModal(true)}
                   className="btn-quantum btn-purple px-4 py-2 text-sm"
@@ -1876,138 +1922,28 @@ ${caseStudy.collectionNotes}
               />
             </div>
 
-            {/* Global Batch Progress Display */}
-            {globalBatchRunning && (
-              <div style={{
-                backgroundColor: darkMode ? '#374151' : '#f8fafc',
-                border: darkMode ? '1px solid #4b5563' : '1px solid #e2e8f0',
-                borderRadius: '8px',
-                padding: '16px',
-                marginBottom: '16px'
-              }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '12px'
-                }}>
-                  <div style={{
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    color: darkMode ? '#f3f4f6' : '#1f2937'
-                  }}>
-                    🌍 Global Processing: {processedCount} / {totalPartnerships}
-                  </div>
-                  <div style={{
-                    fontSize: '12px',
-                    color: darkMode ? '#9ca3af' : '#6b7280'
-                  }}>
-                    {globalBatchPaused ? '⏸️ Paused' : '🔄 Running'}
-                  </div>
-                </div>
-
-                {/* Global Progress Bar */}
-                <div style={{
-                  width: '100%',
-                  height: '6px',
-                  backgroundColor: darkMode ? '#4b5563' : '#e5e7eb',
-                  borderRadius: '3px',
-                  overflow: 'hidden',
-                  marginBottom: '12px'
-                }}>
-                  <div style={{
-                    width: `${getGlobalProgress().percentage}%`,
-                    height: '100%',
-                    backgroundColor: '#10b981',
-                    borderRadius: '3px',
-                    transition: 'width 0.3s ease'
-                  }}></div>
-                </div>
-
-                {/* Current Partnership Status */}
-                {globalCurrentPartnership && (
-                  <div style={{
-                    backgroundColor: darkMode ? '#1f2937' : 'white',
-                    border: darkMode ? '1px solid #4b5563' : '1px solid #e2e8f0',
-                    borderRadius: '6px',
-                    padding: '12px'
-                  }}>
-                    <div style={{
-                      fontSize: '13px',
-                      fontWeight: '500',
-                      color: darkMode ? '#f3f4f6' : '#1f2937',
-                      marginBottom: '8px'
-                    }}>
-                      Currently Processing: {globalCurrentPartnership.company} + {globalCurrentPartnership.partner}
-                    </div>
-
-                    {/* Current Partnership Steps */}
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        fontSize: '11px',
-                        color: darkMode ? '#9ca3af' : '#6b7280'
-                      }}>
-                        <div style={{
-                          width: '8px',
-                          height: '8px',
-                          borderRadius: '50%',
-                          backgroundColor: globalPartnershipProgress?.caseStudy === 'completed' ? '#10b981' : 
-                                         globalPartnershipProgress?.caseStudy === 'in_progress' ? '#f59e0b' : '#6b7280'
-                        }}></div>
-                        Case Study
-                      </div>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        fontSize: '11px',
-                        color: darkMode ? '#9ca3af' : '#6b7280'
-                      }}>
-                        <div style={{
-                          width: '8px',
-                          height: '8px',
-                          borderRadius: '50%',
-                          backgroundColor: globalPartnershipProgress?.metadata === 'completed' ? '#10b981' : 
-                                         globalPartnershipProgress?.metadata === 'in_progress' ? '#f59e0b' : '#6b7280'
-                        }}></div>
-                        Analysis
-                      </div>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        fontSize: '11px',
-                        color: darkMode ? '#9ca3af' : '#6b7280'
-                      }}>
-                        <div style={{
-                          width: '8px',
-                          height: '8px',
-                          borderRadius: '50%',
-                          backgroundColor: globalPartnershipProgress?.references === 'completed' ? '#10b981' : 
-                                         globalPartnershipProgress?.references === 'in_progress' ? '#f59e0b' : '#6b7280'
-                        }}></div>
-                        References
-                      </div>
-                    </div>
-
-                    {/* Stats */}
-                    <div style={{
-                      display: 'flex',
-                      gap: '16px',
-                      marginTop: '8px',
-                      fontSize: '11px',
-                      color: darkMode ? '#9ca3af' : '#6b7280'
-                    }}>
-                      <span>✅ Success: {successCount}</span>
-                      <span>❌ Errors: {errorCount}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Enhanced Global Batch Progress Display */}
+            <BatchProcessingUI
+              globalBatchStore={{
+                isRunning: globalBatchRunning,
+                isPaused: globalBatchPaused,
+                totalPartnerships,
+                currentPartnershipIndex: processedCount,
+                processedCount,
+                successCount,
+                errorCount,
+                skippedCount: 0,
+                currentPartnership: globalCurrentPartnership,
+                currentPartnershipProgress: globalPartnershipProgress,
+                startTime: globalStartTime,
+                sessionLogs: globalSessionLogs
+              }}
+              darkMode={darkMode}
+              onPause={pauseGlobalBatchProcess}
+              onResume={resumeGlobalBatchProcess}
+              onStop={stopGlobalBatchProcess}
+              settings={settings}
+            />
             
             <div style={{ 
               display: 'grid', 

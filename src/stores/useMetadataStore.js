@@ -25,6 +25,23 @@ export const useMetadataStore = create(
           advancedMetadata: { ...state.advancedMetadata, [partnershipId]: metadata }
         }))
       },
+      
+      // Generic setter for session persistence
+      setMetadata: (partnershipId, metadata) => {
+        // Set both basic and advanced metadata for compatibility
+        if (metadata) {
+          get().setBasicMetadata(partnershipId, metadata);
+          get().setAdvancedMetadata(partnershipId, metadata);
+        }
+      },
+      
+      // Generic getter for session persistence
+      getMetadata: (partnershipId) => {
+        const advanced = get().advancedMetadata[partnershipId];
+        const basic = get().basicMetadata[partnershipId];
+        // Prefer advanced metadata if available
+        return advanced || basic || null;
+      },
 
       analyzeMetadata: async (partnership, caseStudy, referenceLists, selectedModel) => {
         const partnershipId = partnership.id
